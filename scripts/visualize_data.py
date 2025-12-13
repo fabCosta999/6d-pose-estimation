@@ -22,7 +22,9 @@ def main():
     for i in range(4):
         show_image_with_bbox(imgs[i], bboxes[i], ax=axes[i])
 
-    plt.show()
+    plt.tight_layout()
+    plt.savefig("data/sample_visualization.png")
+    print("[INFO] Saved visualization to data/sample_visualization.png")
 
 
 if __name__ == "__main__":
