@@ -57,14 +57,32 @@ class LinemodDataset(Dataset):
         W, H = img.size
         img = self.transform(img)
 
-        gt_entry = self.gt_data[obj_id][img_id][0]
-        bb = gt_entry["obj_bb"]
-        class_id = self.OBJ_ID_TO_CLASS[gt_entry["obj_id"]]
+        entries = self.gt_data[obj_id][img_id]
 
-        bbox = self.convert_bb_yolo(bb, W, H)
+        boxes = []
+        labels = []
+
+        for entry in entries:
+            obj_id_gt = entry["obj_id"]
+
+            # skip oggetti che non usi
+            if obj_id_gt not in self.OBJ_ID_TO_CLASS:
+                continue
+
+            boxes.append(self.convert_bb_yolo(entry["obj_bb"], W, H))
+            labels.append(self.OBJ_ID_TO_CLASS[obj_id_gt])
+
+        if len(boxes) == 0:
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
+            labels = torch.zeros((0,), dtype=torch.long)
+        else:
+            boxes = torch.stack(boxes)
+            labels = torch.tensor(labels, dtype=torch.long)
 
         return {
             "rgb": img,
-            "bbox": bbox,
-            "class_id": class_id,
+            "boxes": boxes,
+            "labels": labels,
         }
+
+
