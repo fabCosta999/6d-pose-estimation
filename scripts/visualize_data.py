@@ -7,7 +7,9 @@ from src.utils.visualization import show_image_with_bbox
 
 def main():
     dataset = LinemodDataset("data/Linemod_preprocessed", split="train")
+    print("[INFO] preparing dataloader...")
     loader = DataLoader(dataset, batch_size=4, shuffle=True)
+    print("[INFO] dataloader ready")
 
     batch = next(iter(loader))
 
