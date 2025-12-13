@@ -32,6 +32,14 @@ class LinemodDataset(Dataset):
             transforms.ToTensor(),
         ])
 
+
+    def clamp_to_01(value):
+        if value < 0:
+            return 0
+        if value > 1:
+            return 1
+        return value
+
     def convert_bb_yolo(self, bb, W, H):
         x, y, w, h = bb
         xc = x + w / 2
@@ -40,10 +48,10 @@ class LinemodDataset(Dataset):
         yc /= H
         w  /= W
         h  /= H
-        xc = xc.clamp(0, 1)
-        yc = yc.clamp(0, 1)
-        w  = w.clamp(0, 1)
-        h  = h.clamp(0, 1)
+        xc = self.clamp_to_01(xc)
+        yc = self.clamp_to_01(yc)
+        w = self.clamp_to_01(w)
+        h = self.clamp_to_01(h)
         return torch.tensor([xc, yc, w, h], dtype=torch.float32)
 
     def __len__(self):
