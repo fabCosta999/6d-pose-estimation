@@ -33,7 +33,7 @@ class LinemodDataset(Dataset):
         ])
 
 
-    def clamp_to_01(value):
+    def clamp_to_01(self, value):
         if value < 0:
             return 0
         if value > 1:
