@@ -40,6 +40,10 @@ class LinemodDataset(Dataset):
         yc /= H
         w  /= W
         h  /= H
+        cx = cx.clamp(0, 1)
+        cy = cy.clamp(0, 1)
+        w  = w.clamp(0, 1)
+        h  = h.clamp(0, 1)
         return torch.tensor([xc, yc, w, h], dtype=torch.float32)
 
     def __len__(self):
