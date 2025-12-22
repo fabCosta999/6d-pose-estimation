@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 import torchvision.transforms as transforms
 from PIL import Image
-from utils.quaternions import rotation_matrix_to_quaternion
+from src.utils.quaternions import rotation_matrix_to_quaternion
 
 class LinemodSceneDataset(Dataset):
     CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
