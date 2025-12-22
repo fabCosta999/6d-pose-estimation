@@ -9,7 +9,7 @@ class ResNetDataset(Dataset):
         scene_dataset,
         detection_provider,
         img_size=224,
-        padding=0.2,
+        padding=0.1,
     ):
         self.scene_dataset = scene_dataset
         self.detection_provider = detection_provider
@@ -33,9 +33,13 @@ class ResNetDataset(Dataset):
 
     def crop_with_padding(self, img, bbox):
         x, y, w, h = bbox
+
+        if w <= 1 or h <= 1:
+            return None
+
         pad_w = w * self.padding
         pad_h = h * self.padding
-
+        
         cx = x + w / 2
         cy = y + h / 2
 
@@ -46,6 +50,9 @@ class ResNetDataset(Dataset):
         y1 = int(max(0, cy - h2 / 2))
         x2 = int(min(img.width,  cx + w2 / 2))
         y2 = int(min(img.height, cy + h2 / 2))
+
+        if x2 <= x1 or y2 <= y1:
+            return None
 
         return img.crop((x1, y1, x2, y2))
 
@@ -58,6 +65,8 @@ class ResNetDataset(Dataset):
 
         img = Image.open(scene["img_path"]).convert("RGB")
         crop = self.crop_with_padding(img, obj["bbox"])
+        if crop is None:
+            return self.__getitem__((idx + 1) % len(self))
         crop = self.transform(crop)
 
         return {
