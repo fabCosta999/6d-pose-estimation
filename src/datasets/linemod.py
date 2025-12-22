@@ -33,6 +33,44 @@ class LinemodDataset(Dataset):
         ])
 
 
+    def rotation_matrix_to_quaternion(self, R):
+        """
+        R: tensor (3, 3)
+        ritorna: tensor (4,) [qw, qx, qy, qz]
+        """
+        trace = R.trace()
+
+        if trace > 0:
+            s = torch.sqrt(trace + 1.0) * 2
+            qw = 0.25 * s
+            qx = (R[2, 1] - R[1, 2]) / s
+            qy = (R[0, 2] - R[2, 0]) / s
+            qz = (R[1, 0] - R[0, 1]) / s
+        else:
+            if R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
+                s = torch.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2
+                qw = (R[2, 1] - R[1, 2]) / s
+                qx = 0.25 * s
+                qy = (R[0, 1] + R[1, 0]) / s
+                qz = (R[0, 2] + R[2, 0]) / s
+            elif R[1, 1] > R[2, 2]:
+                s = torch.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2
+                qw = (R[0, 2] - R[2, 0]) / s
+                qx = (R[0, 1] + R[1, 0]) / s
+                qy = 0.25 * s
+                qz = (R[1, 2] + R[2, 1]) / s
+            else:
+                s = torch.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2
+                qw = (R[1, 0] - R[0, 1]) / s
+                qx = (R[0, 2] + R[2, 0]) / s
+                qy = (R[1, 2] + R[2, 1]) / s
+                qz = 0.25 * s
+
+        q = torch.tensor([qw, qx, qy, qz], dtype=torch.float32)
+        return q / torch.norm(q)  
+
+
+
     def clamp_to_01(self, value):
         if value < 0:
             return 0
@@ -73,28 +111,36 @@ class LinemodDataset(Dataset):
 
         boxes = []
         labels = []
+        rotations = []
 
         for entry in entries:
             obj_id_gt = entry["obj_id"]
 
-            # skip oggetti che non usi
+            
             if obj_id_gt not in self.OBJ_ID_TO_CLASS:
                 continue
 
             boxes.append(self.convert_bb_yolo(entry["obj_bb"], W, H))
             labels.append(self.OBJ_ID_TO_CLASS[obj_id_gt])
+            R_flat = entry["cam_R_m2c"]
+            R = torch.tensor(R_flat, dtype=torch.float32).view(3, 3)
+            q = self.rotation_matrix_to_quaternion(R)
+            rotations.append(q)
 
         if len(boxes) == 0:
             boxes = torch.zeros((0, 4), dtype=torch.float32)
             labels = torch.zeros((0,), dtype=torch.long)
+            rotations = torch.zeros((0, 4), dtype=torch.float32)
         else:
             boxes = torch.stack(boxes)
             labels = torch.tensor(labels, dtype=torch.long)
+            rotations = torch.stack(rotations)
 
         return {
             "rgb": img,
             "boxes": boxes,
             "labels": labels,
+            "rotations": rotations,
         }
 
 
