@@ -84,3 +84,11 @@ class LinemodSceneDataset(Dataset):
         }
 
 
+
+class GTDetections:
+    def __init__(self, scene_dataset):
+        self.scene_dataset = scene_dataset
+
+    def __call__(self, idx):
+        # ritorna direttamente gli oggetti GT
+        return self.scene_dataset[idx]["objects"]

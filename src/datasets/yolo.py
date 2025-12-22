@@ -55,3 +55,79 @@ class YoloDataset(Dataset):
             "boxes": boxes,
             "labels": labels,
         }
+
+
+def yolo_to_pixel(bb, W, H):
+    xc, yc, w, h = bb
+    w *= W
+    h *= H
+    x = xc * W - w / 2
+    y = yc * H - h / 2
+    return [x, y, w, h]
+
+
+def iou(bb1, bb2):
+    x1, y1, w1, h1 = bb1
+    x2, y2, w2, h2 = bb2
+
+    xa = max(x1, x2)
+    ya = max(y1, y2)
+    xb = min(x1 + w1, x2 + w2)
+    yb = min(y1 + h1, y2 + h2)
+
+    inter = max(0, xb - xa) * max(0, yb - ya)
+    union = w1 * h1 + w2 * h2 - inter
+    return inter / union if union > 0 else 0
+
+def match_bbox_to_gt(det, gt_objects, iou_thr):
+    best_iou = 0.0
+    best_gt = None
+
+    for gt in gt_objects:
+        if det["label"] != gt["label"]:
+            continue
+
+        val = iou(det["bbox"], gt["bbox"])
+        if val > best_iou:
+            best_iou = val
+            best_gt = gt
+
+    if best_iou >= iou_thr:
+        return best_gt
+    return None
+
+
+
+class YoloDetections:
+    def __init__(self, yolo_model, scene_dataset, iou_thr=0.5):
+        self.yolo = yolo_model
+        self.scene_dataset = scene_dataset
+        self.iou_thr = iou_thr
+
+    def __call__(self, idx):
+        scene = self.scene_dataset[idx]
+        W, H = scene["size"]
+        gt_objects = scene["objects"]
+
+        preds = self.yolo(scene["rgb"])  # output YOLO già decodificato
+
+        detections = []
+        for p in preds:
+            det_bbox = yolo_to_pixel(p["bbox"], W, H)
+
+            det = {
+                "bbox": det_bbox,
+                "label": p["label"],
+            }
+
+            gt = match_bbox_to_gt(det, gt_objects, self.iou_thr)
+            if gt is None:
+                continue
+
+            detections.append({
+                "bbox": det_bbox,          # PIXEL
+                "label": p["label"],
+                "rotation": gt["rotation"] # SEMPRE GT
+            })
+
+        return detections
