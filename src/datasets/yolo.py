@@ -5,7 +5,7 @@ import yaml
 import torchvision.transforms as transforms
 from PIL import Image
 
-class LinemodDataset(Dataset):
+class YoloDataset(Dataset):
     CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
     OBJ_ID_TO_CLASS = {obj_id: i for i, obj_id in enumerate(CLASSES)}
 

@@ -1,13 +1,13 @@
 from pathlib import Path
 import random
-from src.datasets.linemod import LinemodDataset
+from src.datasets.yolo import YoloDataset
 from src.utils.export_yolo import export_split
 from src.utils.export_yolo import create_data_yaml
 
 def main():
     out_dir = Path("data/dataset_yolo")
-    train_ds = LinemodDataset("data/Linemod_preprocessed", split="train")
-    test_ds  = LinemodDataset("data/Linemod_preprocessed", split="test")
+    train_ds = YoloDataset("data/Linemod_preprocessed", split="train")
+    test_ds  = YoloDataset("data/Linemod_preprocessed", split="test")
     indices = list(range(len(train_ds)))
     random.seed(42)
     random.shuffle(indices)
