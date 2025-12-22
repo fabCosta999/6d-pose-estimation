@@ -10,7 +10,6 @@ def yolo_collate_fn(batch):
         "rgb": torch.stack([b["rgb"] for b in batch]),
         "boxes": [b["boxes"] for b in batch],
         "labels": [b["labels"] for b in batch],
-        "rotations": [b["rotations"] for b in batch],
     }
 
 
