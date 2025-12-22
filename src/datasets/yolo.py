@@ -1,44 +1,21 @@
 import torch
 from torch.utils.data import Dataset
-from pathlib import Path
-import yaml
-import torchvision.transforms as transforms
-from PIL import Image
+
 
 class YoloDataset(Dataset):
-    CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
-    OBJ_ID_TO_CLASS = {obj_id: i for i, obj_id in enumerate(CLASSES)}
+    def __init__(self, scene_dataset):
+        self.scene_dataset = scene_dataset
 
-    def __init__(self, dataset_root, split="train"):
-        self.dataset_root = Path(dataset_root)
-        self.split = split
-
-        self.samples = []
-        self.gt_data = {}
-
-        for obj_id in self.CLASSES:
-            obj_dir = self.dataset_root / "data" / f"{obj_id:02d}"
-
-            split_file = obj_dir / f"{split}.txt"
-            with open(split_file) as f:
-                for line in f:
-                    self.samples.append((obj_id, int(line.strip())))
-
-            with open(obj_dir / "gt.yml") as f:
-                self.gt_data[obj_id] = yaml.safe_load(f)
-
-        self.transform = transforms.Compose([
-            transforms.Resize((640, 640)),
-            transforms.ToTensor(),
-        ])
-
-
+    def __len__(self):
+        return len(self.scene_dataset)
+    
     def clamp_to_01(self, value):
         if value < 0:
             return 0
         if value > 1:
             return 1
         return value
+    
 
     def convert_bb_yolo(self, bb, W, H):
         x, y, w, h = bb
@@ -54,47 +31,27 @@ class YoloDataset(Dataset):
         h = self.clamp_to_01(h)
         return torch.tensor([xc, yc, w, h], dtype=torch.float32)
 
-    def __len__(self):
-        return len(self.samples)
-
     def __getitem__(self, idx):
-        obj_id, img_id = self.samples[idx]
-
-        img_path = (
-            self.dataset_root / "data" / f"{obj_id:02d}" /
-            "rgb" / f"{img_id:04d}.png"
-        )
-
-        img = Image.open(img_path).convert("RGB")
-        W, H = img.size
-        img = self.transform(img)
-
-        entries = self.gt_data[obj_id][img_id]
+        sample = self.scene_dataset[idx]
+        W, H = sample["size"]
 
         boxes = []
         labels = []
 
-        for entry in entries:
-            obj_id_gt = entry["obj_id"]
-
-            # skip oggetti che non usi
-            if obj_id_gt not in self.OBJ_ID_TO_CLASS:
-                continue
-
-            boxes.append(self.convert_bb_yolo(entry["obj_bb"], W, H))
-            labels.append(self.OBJ_ID_TO_CLASS[obj_id_gt])
+        for obj in sample["objects"]:
+            x, y, w, h = obj["bbox"]
+            boxes.append(self.convert_bb_yolo([x, y, w, h], W, H))
+            labels.append(obj["label"])
 
         if len(boxes) == 0:
-            boxes = torch.zeros((0, 4), dtype=torch.float32)
+            boxes = torch.zeros((0, 4))
             labels = torch.zeros((0,), dtype=torch.long)
         else:
             boxes = torch.stack(boxes)
             labels = torch.tensor(labels, dtype=torch.long)
 
         return {
-            "rgb": img,
+            "rgb": sample["rgb"],
             "boxes": boxes,
             "labels": labels,
         }
-
-

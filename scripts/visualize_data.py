@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import torch
+from src.datasets.scene import LinemodSceneDataset
 from src.datasets.yolo import YoloDataset
 from src.utils.visualization import show_image_with_bbox
 
@@ -15,7 +16,8 @@ def yolo_collate_fn(batch):
 
 def main():
     print("[INFO] constructing dataset...")
-    dataset = YoloDataset("data/Linemod_preprocessed", split="train")
+    dataset_scene = LinemodSceneDataset("data/Linemod_preprocessed", split="train")
+    dataset = YoloDataset(dataset_scene)
     print("[INFO] dataset ready")
 
     print("[INFO] preparing dataloader...")
