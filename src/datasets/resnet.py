@@ -18,16 +18,27 @@ class ResNetDataset(Dataset):
 
         self.transform = transforms.Compose([
             transforms.Resize((img_size, img_size)),
+            transforms.ColorJitter(
+                brightness=0.4,
+                contrast=0.4,
+                saturation=0.3,
+                hue=0.05,
+            ),
+            transforms.RandomGrayscale(p=0.1),
             transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
         ])
+
 
         # flat index: (scene_idx, det_idx)
         self.index = []
-        for scene_idx in range(len(scene_dataset)):
-            dets = detection_provider(scene_idx)
-            for det_idx, det in enumerate(dets):
-                if det["bbox"][2] > 1 and det["bbox"][3] > 1:
-                    self.index.append((scene_idx, det_idx))
+        for scene_idx in range(len(scene_dataset)): 
+            dets = detection_provider(scene_idx) 
+            for det_idx in range(len(dets)): 
+                self.index.append((scene_idx, det_idx))
 
     def __len__(self):
         return len(self.index)
@@ -50,7 +61,7 @@ class ResNetDataset(Dataset):
         y2 = int(min(img.height, cy + h2 / 2))
 
         if x2 <= x1 or y2 <= y1:
-            print("BAD CROP:", bbox, "img size:", img.size)
+            # print("BAD CROP:", bbox, "img size:", img.size)
             return None
 
         return img.crop((x1, y1, x2, y2))
