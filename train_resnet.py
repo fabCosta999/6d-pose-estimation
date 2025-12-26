@@ -7,13 +7,7 @@ import random
 import torch
 from src.models.resnet import ResNetQuat
 from src.models.resnet import QuaternionGeodesicLoss
-
-def rotation_error_deg(q_pred, q_gt):
-    dot = torch.sum(q_pred * q_gt, dim=1)
-    dot = torch.abs(dot)
-    dot = torch.clamp(dot, -1 + 1e-6, 1 - 1e-6)
-    angle = 2 * torch.acos(dot)
-    return torch.rad2deg(angle)
+from src.utils.quaternions import rotation_error_deg
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

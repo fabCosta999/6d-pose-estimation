@@ -35,3 +35,11 @@ def rotation_matrix_to_quaternion(R):
 
     q = torch.tensor([qw, qx, qy, qz], dtype=torch.float32)
     return q / torch.norm(q)  # normalizzazione fondamentale
+
+
+def rotation_error_deg(q_pred, q_gt):
+    dot = torch.sum(q_pred * q_gt, dim=1)
+    dot = torch.abs(dot)
+    dot = torch.clamp(dot, -1 + 1e-6, 1 - 1e-6)
+    angle = 2 * torch.acos(dot)
+    return torch.rad2deg(angle)
