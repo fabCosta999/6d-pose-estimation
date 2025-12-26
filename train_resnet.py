@@ -55,7 +55,7 @@ valid_loader = DataLoader(
 print("dataloader pronto")
 
 model = ResNetQuat(
-        backbone="resnet50",
+        backbone="resnet18",
         pretrained=True,
     ).to(device)
 
