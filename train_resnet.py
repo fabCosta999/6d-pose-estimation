@@ -13,7 +13,7 @@ from src.utils.quaternions import rotation_error_deg
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 32
-num_epochs = 10
+num_epochs = 50
 lr = 1e-4
 scene_ds = LinemodSceneDataset(
         dataset_root=dataset_root,
