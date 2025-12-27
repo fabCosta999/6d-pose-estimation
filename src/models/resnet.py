@@ -160,53 +160,6 @@ class SymmetryAwareGeodesicLoss(nn.Module):
 
         return torch.stack(losses).mean()
 
-    def __init__(self, device):
-        super().__init__()
-        self.device = device
-        self.z_axis = torch.tensor([0., 0., 1.], device=device)
-
-    def geodesic_angle(q1, q2):
-        q1 = F.normalize(q1, dim=0)
-        q2 = F.normalize(q2, dim=0)
-        dot = torch.abs(torch.dot(q1, q2))
-        dot = torch.clamp(dot, -1.0, 1.0)
-        return 2 * torch.acos(dot)   # RADIANTI
-
-    
-    def discrete_loss(self, q_pred, q_gt, label):
-        losses = []
-        for q_sym in SYMMETRIC_QUATS[label]:
-            q = quat_mul(q_gt, q_sym)
-            dot = torch.abs(torch.dot(q_pred, q))
-            losses.append(1 - dot)
-        return torch.min(torch.stack(losses))
-    
-    def axial_loss(self, q_pred, q_gt):
-        z_pred = rotate_vector(q_pred.unsqueeze(0), self.z_axis)[0]
-        z_gt   = rotate_vector(q_gt.unsqueeze(0), self.z_axis)[0]
-
-        cos = torch.dot(z_pred, z_gt)
-        cos = torch.clamp(cos, -1, 1)
-
-        return 1 - cos
-
-    def forward(self, q_pred, q_gt, labels):
-        losses = []
-
-        for i in range(q_pred.shape[0]):
-            label = int(labels[i].item())
-            sym = LINEMOD_SYMMETRIES.get(label, SymmetryType.NONE)
-
-            if sym == SymmetryType.NONE:
-                losses.append(self.geodesic_angle(q_pred[i], q_gt[i]))
-
-            elif sym == SymmetryType.DISCRETE:
-                losses.append(self.discrete_loss(q_pred[i], q_gt[i], label))
-
-            elif sym == SymmetryType.AXIAL:
-                losses.append(self.axial_loss(q_pred[i], q_gt[i]))
-
-        return torch.stack(losses).mean()
     
 
 def rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device):
