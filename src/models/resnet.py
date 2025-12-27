@@ -5,34 +5,14 @@ from torchvision import models
 
 
 from torchvision import models
-from torchvision.models import (
-    ResNet18_Weights,
-    ResNet34_Weights,
-    ResNet50_Weights,
-)
+from torchvision.models import ResNet50_Weights
 
 class ResNetQuat(nn.Module):
-    def __init__(self, backbone="resnet18", pretrained=True):
+    def __init__(self):
         super().__init__()
-
-        if backbone == "resnet18":
-            weights = ResNet18_Weights.DEFAULT if pretrained else None
-            self.backbone = models.resnet18(weights=weights)
-            feat_dim = 512
-
-        elif backbone == "resnet34":
-            weights = ResNet34_Weights.DEFAULT if pretrained else None
-            self.backbone = models.resnet34(weights=weights)
-            feat_dim = 512
-
-        elif backbone == "resnet50":
-            weights = ResNet50_Weights.DEFAULT if pretrained else None
-            self.backbone = models.resnet50(weights=weights)
-            feat_dim = 2048
-
-        else:
-            raise ValueError("Unsupported backbone")
-
+        weights = ResNet50_Weights.DEFAULT
+        self.backbone = models.resnet50(weights=weights)
+        feat_dim = 2048
         self.backbone.fc = nn.Identity()
         self.head = nn.Linear(feat_dim, 4)
 
@@ -43,10 +23,158 @@ class ResNetQuat(nn.Module):
         return q
 
 
-class QuaternionGeodesicLoss(nn.Module):
+"""class QuaternionGeodesicLoss(nn.Module):
     def __init__(self):
         super().__init__()
     def forward(self, q_pred, q_gt):
         dot = torch.sum(q_pred * q_gt, dim=1)
         dot = torch.abs(dot)
         return (1 - dot).mean()
+    
+"""
+from enum import Enum
+
+class SymmetryType(Enum):
+    NONE = 0
+    DISCRETE = 1
+    AXIAL = 2
+
+LINEMOD_SYMMETRIES = {
+    5:  SymmetryType.AXIAL,     # can
+    10: SymmetryType.DISCRETE,  # eggbox
+    11: SymmetryType.AXIAL,     # glue
+    12: SymmetryType.DISCRETE,  # holepuncher (approx)
+}
+
+def rotate_vector(q, v):
+    q_vec = q[:, 1:]
+    w = q[:, :1]
+
+    t = 2 * torch.cross(q_vec, v.expand_as(q_vec), dim=1)
+    v_rot = v + w * t + torch.cross(q_vec, t, dim=1)
+
+    return F.normalize(v_rot, dim=1)
+
+
+def quat_mul(q1, q2):
+    """
+    Moltiplicazione tra quaternioni.
+    q1, q2: (..., 4) in formato [w, x, y, z]
+    """
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+
+    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
+    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
+    y = w1*y2 - x1*z2 + y1*w2 + z1*x2
+    z = w1*z2 + x1*y2 - y1*x2 + z1*w2
+
+    return torch.tensor([w, x, y, z], device=q1.device)
+
+q_id = torch.tensor([1., 0., 0., 0.])
+q_180_z = torch.tensor([0., 0., 0., 1.])
+
+SYMMETRIC_QUATS = {
+    10: [q_id, q_180_z],  # eggbox
+    12: [q_id, q_180_z],  # holepuncher (approx)
+}
+
+
+    
+
+class SymmetryAwareLoss(nn.Module):
+    def __init__(self, device):
+        super().__init__()
+        self.device = device
+        self.z_axis = torch.tensor([0., 0., 1.], device=device)
+
+    def geodesic(self, q1, q2):
+        dot = torch.abs(torch.dot(q1, q2))
+        return 1 - dot
+    
+    def discrete_loss(self, q_pred, q_gt, label):
+        losses = []
+        for q_sym in SYMMETRIC_QUATS[label]:
+            q = quat_mul(q_gt, q_sym)
+            dot = torch.abs(torch.dot(q_pred, q))
+            losses.append(1 - dot)
+        return torch.min(torch.stack(losses))
+    
+    def axial_loss(self, q_pred, q_gt):
+        z_pred = rotate_vector(q_pred.unsqueeze(0), self.z_axis)[0]
+        z_gt   = rotate_vector(q_gt.unsqueeze(0), self.z_axis)[0]
+
+        cos = torch.dot(z_pred, z_gt)
+        cos = torch.clamp(cos, -1, 1)
+
+        return 1 - cos
+
+    def forward(self, q_pred, q_gt, labels):
+        losses = []
+
+        for i in range(q_pred.shape[0]):
+            label = int(labels[i].item())
+            sym = LINEMOD_SYMMETRIES.get(label, SymmetryType.NONE)
+
+            if sym == SymmetryType.NONE:
+                losses.append(self.geodesic(q_pred[i], q_gt[i]))
+
+            elif sym == SymmetryType.DISCRETE:
+                losses.append(self.discrete_loss(q_pred[i], q_gt[i], label))
+
+            elif sym == SymmetryType.AXIAL:
+                losses.append(self.axial_loss(q_pred[i], q_gt[i]))
+
+        return torch.stack(losses).mean()
+    
+
+def rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device):
+    z_axis = torch.tensor([0., 0., 1.], device=device)
+    errors = []
+
+    for i in range(q_pred.shape[0]):
+        label = int(labels[i].item())
+        sym = LINEMOD_SYMMETRIES.get(label, SymmetryType.NONE)
+
+        if sym == SymmetryType.NONE:
+            err = geodesic_angle_deg(q_pred[i], q_gt[i])
+
+        elif sym == SymmetryType.DISCRETE:
+            err = discrete_angle_deg(q_pred[i], q_gt[i], label)
+
+        elif sym == SymmetryType.AXIAL:
+            err = axial_angle_deg(q_pred[i], q_gt[i], z_axis)
+
+        errors.append(err)
+
+    return torch.stack(errors)
+
+
+
+def axial_angle_deg(q_pred, q_gt, z_axis):
+    z_pred = rotate_vector(q_pred.unsqueeze(0), z_axis)[0]
+    z_gt   = rotate_vector(q_gt.unsqueeze(0), z_axis)[0]
+
+    cos = torch.dot(z_pred, z_gt)
+    cos = torch.clamp(cos, -1 + 1e-6, 1 - 1e-6)
+
+    angle = torch.acos(cos)
+    return torch.rad2deg(angle)
+
+
+def discrete_angle_deg(q_pred, q_gt, label):
+    angles = []
+
+    for q_sym in SYMMETRIC_QUATS[label]:
+        q_equiv = quat_mul(q_gt, q_sym)
+        angles.append(geodesic_angle_deg(q_pred, q_equiv))
+
+    return torch.min(torch.stack(angles))
+
+
+def geodesic_angle_deg(q1, q2):
+    dot = torch.sum(q1 * q2)
+    dot = torch.abs(dot)
+    dot = torch.clamp(dot, -1 + 1e-6, 1 - 1e-6)
+    angle = 2 * torch.acos(dot)
+    return torch.rad2deg(angle)

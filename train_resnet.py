@@ -6,8 +6,7 @@ import torch.optim as optim
 import random
 import torch
 from src.models.resnet import ResNetQuat
-from src.models.resnet import QuaternionGeodesicLoss
-from src.utils.quaternions import rotation_error_deg
+from src.models.resnet import SymmetryAwareLoss, rotation_error_deg_symmetry_aware
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -54,12 +53,9 @@ valid_loader = DataLoader(
 )
 print("dataloader pronto")
 
-model = ResNetQuat(
-        backbone="resnet18",
-        pretrained=True,
-    ).to(device)
+model = ResNetQuat().to(device)
 
-criterion = QuaternionGeodesicLoss()
+criterion = SymmetryAwareLoss()
 
 optimizer = optim.Adam(
         model.parameters(),
@@ -76,9 +72,10 @@ for epoch in range(num_epochs):
     for i, batch in enumerate(train_loader):
         rgb = batch["rgb"].to(device)
         gt_q = batch["rotation"].to(device)
+        gt_l = batch["label"].to(device)
 
         pred_q = model(rgb)
-        loss = criterion(pred_q, gt_q)
+        loss = criterion(pred_q, gt_q, gt_l)
 
         optimizer.zero_grad()
         loss.backward()
@@ -87,7 +84,7 @@ for epoch in range(num_epochs):
         running_loss += loss.item()
 
         with torch.no_grad():
-            angle = rotation_error_deg(pred_q, gt_q)
+            angle = rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l)
             running_angle += angle.mean().item()
 
         if i % 50 == 0:
@@ -110,12 +107,13 @@ for epoch in range(num_epochs):
         for batch in valid_loader:
             rgb = batch["rgb"].to(device)
             gt_q = batch["rotation"].to(device)
+            gt_l = batch["label"].to(device)
 
             pred_q = model(rgb)
             loss = criterion(pred_q, gt_q)
 
             val_loss += loss.item()
-            val_angle += rotation_error_deg(pred_q, gt_q).mean().item()
+            val_angle += rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l).mean().item()
 
     val_loss /= len(valid_loader)
     val_angle /= len(valid_loader)
@@ -127,3 +125,11 @@ for epoch in range(num_epochs):
         f"Val loss: {val_loss:.4f} | "
         f"Val err: {val_angle:.2f}°"
     )
+
+
+
+
+
+
+
+
