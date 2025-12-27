@@ -6,7 +6,7 @@ import torch.optim as optim
 import random
 import torch
 from src.models.resnet import ResNetQuat
-from src.models.resnet import SymmetryAwareLoss, rotation_error_deg_symmetry_aware
+from src.models.resnet import SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -55,7 +55,7 @@ print("dataloader pronto")
 
 model = ResNetQuat().to(device)
 
-criterion = SymmetryAwareLoss(device)
+criterion = SymmetryAwareGeodesicLoss(device)
 
 optimizer = optim.Adam(
         model.parameters(),
