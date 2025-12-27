@@ -55,7 +55,7 @@ print("dataloader pronto")
 
 model = ResNetQuat().to(device)
 
-criterion = SymmetryAwareLoss()
+criterion = SymmetryAwareLoss(device)
 
 optimizer = optim.Adam(
         model.parameters(),
