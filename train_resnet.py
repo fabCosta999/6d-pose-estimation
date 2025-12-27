@@ -110,7 +110,7 @@ for epoch in range(num_epochs):
             gt_l = batch["label"].to(device)
 
             pred_q = model(rgb)
-            loss = criterion(pred_q, gt_q)
+            loss = criterion(pred_q, gt_q, gt_l)
 
             val_loss += loss.item()
             val_angle += rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l, device).mean().item()
