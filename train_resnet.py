@@ -63,6 +63,15 @@ optimizer = optim.Adam(
         weight_decay=1e-5,
     )
 
+scheduler = torch.optim.lr_scheduler.StepLR(
+    optimizer,
+    step_size=8,   
+    gamma=0.1      
+)
+
+best_val = float("inf")
+patience = 4
+bad_epochs = 0
 
 for epoch in range(num_epochs):
     model.train()
@@ -125,6 +134,18 @@ for epoch in range(num_epochs):
         f"Val loss: {val_loss:.4f} | "
         f"Val err: {val_angle:.2f}°"
     )
+    current_lr = optimizer.param_groups[0]["lr"]
+    print(f"Current LR: {current_lr:.2e}")
+    scheduler.step()
+    if val_loss < best_val:
+        best_val = val_loss
+        bad_epochs = 0
+        torch.save(model.state_dict(), "best_pose.pth")
+    else:
+        bad_epochs += 1
+        if bad_epochs >= patience:
+            print("Early stopping")
+            break
 
 
 
