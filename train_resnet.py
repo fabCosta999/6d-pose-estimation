@@ -12,7 +12,7 @@ from src.models.resnet import SymmetryAwareLoss, rotation_error_deg_symmetry_awa
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 32
-num_epochs = 50
+num_epochs = 30
 lr = 1e-4
 scene_ds = LinemodSceneDataset(
         dataset_root=dataset_root,
@@ -65,7 +65,7 @@ optimizer = optim.Adam(
 
 scheduler = torch.optim.lr_scheduler.StepLR(
     optimizer,
-    step_size=8,   
+    step_size=7,   
     gamma=0.1      
 )
 
