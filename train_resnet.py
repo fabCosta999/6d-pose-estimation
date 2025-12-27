@@ -84,7 +84,7 @@ for epoch in range(num_epochs):
         running_loss += loss.item()
 
         with torch.no_grad():
-            angle = rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l)
+            angle = rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l, device)
             running_angle += angle.mean().item()
 
         if i % 50 == 0:
@@ -113,7 +113,7 @@ for epoch in range(num_epochs):
             loss = criterion(pred_q, gt_q)
 
             val_loss += loss.item()
-            val_angle += rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l).mean().item()
+            val_angle += rotation_error_deg_symmetry_aware(pred_q, gt_q, gt_l, device).mean().item()
 
     val_loss /= len(valid_loader)
     val_angle /= len(valid_loader)
