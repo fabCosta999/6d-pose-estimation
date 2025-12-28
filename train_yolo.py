@@ -8,7 +8,9 @@ results = model.train(
     epochs=50,
     batch=16,
     freeze=10,
-    workers=4
+    workers=4,
+    project="/content/drive/MyDrive/machine_learning_project",
+    name="yolo_pose_exp1"
 )
 print(results)
 print(results.save_dir)
