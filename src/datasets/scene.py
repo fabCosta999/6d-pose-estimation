@@ -21,9 +21,16 @@ class LinemodSceneDataset(Dataset):
         for obj_id in self.CLASSES:
             obj_dir = self.dataset_root / "data" / f"{obj_id:02d}"
 
-            with open(obj_dir / f"{split}.txt") as f:
-                for line in f:
-                    self.samples.append((obj_id, int(line.strip())))
+            rgb_dir = obj_dir / "rgb"
+            num_images = len(list(rgb_dir.glob("*.png")))
+            split_point = int(0.8 * num_images)
+            if split == "train":
+                img_ids = range(0, split_point)
+            else:
+                img_ids = range(split_point, num_images)
+
+            for img_id in img_ids:
+                self.samples.append((obj_id, img_id))
 
             with open(obj_dir / "gt.yml") as f:
                 self.gt_data[obj_id] = yaml.safe_load(f)
