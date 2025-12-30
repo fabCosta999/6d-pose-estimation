@@ -5,8 +5,8 @@ from torch.utils.data import DataLoader, Subset
 import torch.optim as optim
 import random
 import torch
-from src.models.resnet import ResNetQuat
-from src.models.resnet import SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
+from src.networks.resnet import ResNetQuat
+from src.networks.resnet import SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
