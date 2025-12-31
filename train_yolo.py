@@ -10,7 +10,7 @@ results = model.train(
     freeze=10,
     workers=4,
     project="/content/drive/MyDrive/machine_learning_project",
-    name="yolo_8020"
+    name="yolo11s_8020"
 )
 print(results)
 print(results.save_dir)
