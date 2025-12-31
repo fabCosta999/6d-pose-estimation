@@ -10,10 +10,9 @@ class LinemodSceneDataset(Dataset):
     CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
     OBJ_ID_TO_CLASS = {obj_id: i for i, obj_id in enumerate(CLASSES)}
 
-    def __init__(self, dataset_root, split="train", img_size=640):
+    def __init__(self, dataset_root, split="train"):
         self.dataset_root = Path(dataset_root)
         self.split = split
-        self.img_size = img_size
 
         self.samples = []
         self.gt_data = {}
@@ -34,16 +33,21 @@ class LinemodSceneDataset(Dataset):
 
             with open(obj_dir / "gt.yml") as f:
                 self.gt_data[obj_id] = yaml.safe_load(f)
+        
 
-        self.rgb_transform = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.ToTensor(),
-        ])
+        any_obj = self.CLASSES[0]
+        info_path = self.dataset_root / "data" / f"{any_obj:02d}" / "info.yml"
 
-        self.depth_transform = transforms.Compose([
-            transforms.Resize((img_size, img_size), interpolation=Image.NEAREST),
-            transforms.ToTensor(),  # depth rimane 1xHxW
-        ])
+        with open(info_path) as f:
+            info = yaml.safe_load(f)
+
+        cam_info = next(iter(info.values()))
+
+        self.K = torch.tensor(cam_info["cam_K"], dtype=torch.float32).view(3, 3)
+        self.depth_scale = cam_info.get("depth_scale", 1.0)
+
+        self.rgb_transform = transforms.ToTensor()
+        self.depth_transform = transforms.ToTensor()
 
 
     def __len__(self):
@@ -86,8 +90,9 @@ class LinemodSceneDataset(Dataset):
 
         return {
             "img_path": img_path,
+            "depth": depth * self.depth_scale,
+            "cam_intrinsics": self.K,
             "rgb": rgb,
-            "depth": depth,
             "objects": objects,
             "size": (W, H),
         }

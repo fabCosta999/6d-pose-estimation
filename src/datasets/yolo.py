@@ -106,18 +106,33 @@ class YoloDetections:
 
     def __call__(self, idx):
         scene = self.scene_dataset[idx]
-        W, H = scene["size"]
         gt_objects = scene["objects"]
 
-        preds = self.yolo(scene["rgb"])  # output YOLO già decodificato
+        img = scene["rgb"].permute(1, 2, 0).cpu().numpy()
+
+        results = self.yolo(
+            img,
+            imgsz=640,
+            conf=0.25,
+            verbose=False
+        )
 
         detections = []
-        for p in preds:
-            det_bbox = yolo_to_pixel(p["bbox"], W, H)
+
+        r = results[0]
+        if r.boxes is None:
+            return detections
+
+        boxes = r.boxes.xyxy.cpu().numpy()
+        labels = r.boxes.cls.cpu().numpy().astype(int)
+
+        for box, label in zip(boxes, labels):
+            x1, y1, x2, y2 = box
+            det_bbox = [x1, y1, x2 - x1, y2 - y1]
 
             det = {
                 "bbox": det_bbox,
-                "label": p["label"],
+                "label": label,
             }
 
             gt = match_bbox_to_gt(det, gt_objects, self.iou_thr)
@@ -125,9 +140,11 @@ class YoloDetections:
                 continue
 
             detections.append({
-                "bbox": det_bbox,          # PIXEL
-                "label": p["label"],
-                "rotation": gt["rotation"] # SEMPRE GT
+                "bbox": det_bbox,
+                "label": label,
+                "rotation": gt["rotation"],
+                "translation": gt["translation"],  
             })
 
         return detections
+
