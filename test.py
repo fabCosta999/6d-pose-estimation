@@ -3,7 +3,7 @@ from src.datasets.scene import LinemodSceneDataset
 import torch
 
 model = YOLO(
-    "/content/drive/MyDrive/machine_learning_project/yolo_8020/weights/best.pt"
+    "/content/drive/MyDrive/machine_learning_project/yolo11s_8020/weights/best.pt"
 )
 
 ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
