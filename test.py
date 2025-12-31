@@ -13,6 +13,7 @@ results = model.predict(
     imgsz=640,
     batch=16,
     device="cpu",
+    stream=True,
     save=False
 )
 
