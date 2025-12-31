@@ -75,11 +75,13 @@ class LinemodSceneDataset(Dataset):
 
             R = torch.tensor(entry["cam_R_m2c"], dtype=torch.float32).view(3, 3)
             q = rotation_matrix_to_quaternion(R)
+            t = torch.tensor(entry["cam_t_m2c"], dtype=torch.float32).view(3)
 
             objects.append({
                 "bbox": entry["obj_bb"],          # pixel
                 "label": self.OBJ_ID_TO_CLASS[obj_id_gt],
                 "rotation": q,
+                "translation":t, 
             })
 
         return {
