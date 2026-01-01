@@ -17,6 +17,7 @@ results = model.predict(
     save=False
 )
 
+
 for r, scene in zip(results, ds):
     if r.boxes is None or len(r.boxes) == 0:
         continue

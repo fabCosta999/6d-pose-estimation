@@ -10,14 +10,14 @@ class ResNetDataset(Dataset):
         detection_provider,
         img_size=224,
         padding=0.1,
-        transform=True,
+        enable_transform=True,
     ):
         self.scene_dataset = scene_dataset
         self.detection_provider = detection_provider
         self.img_size = img_size
         self.padding = padding
 
-        if (transform):
+        if enable_transform:
             self.transform = transforms.Compose([
                 transforms.Resize((img_size, img_size)),
                 transforms.ColorJitter(
@@ -34,7 +34,7 @@ class ResNetDataset(Dataset):
                 ),
             ])
         else:
-            self.transform = transform.Compose([
+            self.transform = transforms.Compose([
                 transforms.Resize((img_size, img_size)),
                 transforms.ToTensor(),
                 transforms.Normalize(
