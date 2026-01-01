@@ -1,7 +1,7 @@
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.networks.resnet import PoseResNet, SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
+from src.models.resnet import PoseResNet, SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
 from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.resnet import ResNetDataset
 import random 
