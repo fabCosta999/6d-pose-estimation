@@ -1,7 +1,7 @@
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.networks.resnet import PoseResNet, QuaternionLoss
+from src.networks.resnet import PoseResNet, SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
 from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.resnet import ResNetDataset
 import random 
@@ -51,7 +51,7 @@ print("dataloader pronto")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model = PoseResNet(pretrained=True).to(device)
-criterion = QuaternionLoss()
+criterion = SymmetryAwareGeodesicLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 scheduler = optim.lr_scheduler.StepLR(
     optimizer, step_size=15, gamma=0.5
@@ -66,33 +66,40 @@ for epoch in range(num_epochs):
     # =========================
     model.train()
     running_train_loss = 0.0
+    running_angle = 0
 
     pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} [TRAIN]")
 
     for batch in pbar:
         rgb = batch["rgb"].to(device)        # [B, 3, 224, 224]
         q_gt = batch["rotation"].to(device)  # [B, 4]
+        label = batch["label"].to(device)
 
         optimizer.zero_grad()
 
         q_pred = model(rgb)
-        loss = criterion(q_pred, q_gt)
+        loss = criterion(q_pred, q_gt, label)
 
         loss.backward()
         optimizer.step()
 
         running_train_loss += loss.item() * rgb.size(0)
         pbar.set_postfix(train_loss=loss.item())
+        with torch.no_grad():
+            angle = rotation_error_deg_symmetry_aware(q_pred, q_gt, label, device)
+            running_angle += angle.sum().item()
 
-    scheduler.step()
+    
 
     train_epoch_loss = running_train_loss / len(train_loader.dataset)
+    train_angle = running_angle / len(train_loader.dataset)
 
     # =========================
     # VALIDATION
     # =========================
     model.eval()
     running_valid_loss = 0.0
+    running_valid_angle = 0.0
 
     with torch.no_grad():
         pbar = tqdm(valid_loader, desc=f"Epoch {epoch+1}/{num_epochs} [VAL]")
@@ -100,14 +107,20 @@ for epoch in range(num_epochs):
         for batch in pbar:
             rgb = batch["rgb"].to(device)
             q_gt = batch["rotation"].to(device)
+            label = batch["label"].to(device)
 
             q_pred = model(rgb)
-            loss = criterion(q_pred, q_gt)
+            loss = criterion(q_pred, q_gt, label)
 
             running_valid_loss += loss.item() * rgb.size(0)
             pbar.set_postfix(val_loss=loss.item())
+            angle = rotation_error_deg_symmetry_aware(q_pred, q_gt, label, device)
+            running_valid_angle += angle.sum().item()
 
     valid_epoch_loss = running_valid_loss / len(valid_loader.dataset)
+    valid_angle = running_valid_angle / len(valid_loader.dataset)
+    
+    scheduler.step()
 
     # =========================
     # LOGGING + CHECKPOINT
@@ -116,7 +129,8 @@ for epoch in range(num_epochs):
         f"Epoch {epoch+1}/{num_epochs} | "
         f"Train Loss: {train_epoch_loss:.6f} | "
         f"Val Loss: {valid_epoch_loss:.6f} | "
-        f"LR: {scheduler.get_last_lr()[0]:.2e}"
+        f"LR: {scheduler.get_last_lr()[0]:.2e} |"
+        f"angle error: {valid_angle}"
     )
 
     if valid_epoch_loss < best_loss:
