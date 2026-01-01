@@ -7,7 +7,7 @@ from src.datasets.resnet import ResNetDataset
 import random 
 from torch.utils.data import DataLoader, Subset
 
-
+print("started")
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 32
 num_epochs = 50
