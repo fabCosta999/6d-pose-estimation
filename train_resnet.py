@@ -135,7 +135,7 @@ for epoch in range(num_epochs):
 
     if valid_epoch_loss < best_loss:
         best_loss = valid_epoch_loss
-        torch.save(model.state_dict(), "pose_resnet_best.pth")
+        torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning/project/pose_resnet_best.pth")
         print("Saved new best model (based on validation)")
 
 
