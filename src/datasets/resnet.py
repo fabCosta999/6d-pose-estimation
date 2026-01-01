@@ -10,27 +10,38 @@ class ResNetDataset(Dataset):
         detection_provider,
         img_size=224,
         padding=0.1,
+        transform=True,
     ):
         self.scene_dataset = scene_dataset
         self.detection_provider = detection_provider
         self.img_size = img_size
         self.padding = padding
 
-        self.transform = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
-            transforms.ColorJitter(
-                brightness=0.4,
-                contrast=0.4,
-                saturation=0.3,
-                hue=0.05,
-            ),
-            transforms.RandomGrayscale(p=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225],
-            ),
-        ])
+        if (transform):
+            self.transform = transforms.Compose([
+                transforms.Resize((img_size, img_size)),
+                transforms.ColorJitter(
+                    brightness=0.4,
+                    contrast=0.4,
+                    saturation=0.3,
+                    hue=0.05,
+                ),
+                transforms.RandomGrayscale(p=0.1),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                ),
+            ])
+        else:
+            self.transform = transform.Compose([
+                transforms.Resize((img_size, img_size)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                ),
+            ])
 
 
         # flat index: (scene_idx, det_idx)
