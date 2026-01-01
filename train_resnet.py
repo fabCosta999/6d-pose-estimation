@@ -1,4 +1,136 @@
-from src.datasets.scene import LinemodSceneDataset
+import torch
+from torch import optim
+from tqdm import tqdm
+from src.networks.resnet import PoseResNet, QuaternionLoss
+from src.datasets.scene import LinemodSceneDataset, GTDetections
+from src.datasets.resnet import ResNetDataset
+import random 
+from torch.utils.data import DataLoader, Subset
+
+
+dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
+batch_size = 32
+num_epochs = 50
+lr = 1e-4
+scene_ds = LinemodSceneDataset(
+        dataset_root=dataset_root,
+        split="train"
+    )
+gt_detections = GTDetections(scene_ds)
+train_ds = ResNetDataset(
+        scene_dataset=scene_ds,
+        detection_provider=gt_detections,
+        img_size=224,
+        padding=0,
+        enable_transform=False
+    )
+indices = list(range(len(train_ds)))
+random.seed(42)
+random.shuffle(indices)
+split = int(0.9 * len(indices))
+train_idx = indices[:split]
+valid_idx = indices[split:]
+train_subset = Subset(train_ds, train_idx)
+valid_subset = Subset(train_ds, valid_idx)
+train_loader = DataLoader(
+    train_subset,
+    batch_size=batch_size,
+    shuffle=True,
+    num_workers=2,
+    pin_memory=True,
+)
+valid_loader = DataLoader(
+    valid_subset,
+    batch_size=batch_size,
+    shuffle=False,
+    num_workers=2,
+    pin_memory=True,
+)
+print("dataloader pronto")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+model = PoseResNet(pretrained=True).to(device)
+criterion = QuaternionLoss()
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
+scheduler = optim.lr_scheduler.StepLR(
+    optimizer, step_size=15, gamma=0.5
+)
+
+num_epochs = 50
+best_loss = float("inf")
+
+for epoch in range(num_epochs):
+    # =========================
+    # TRAIN
+    # =========================
+    model.train()
+    running_train_loss = 0.0
+
+    pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} [TRAIN]")
+
+    for batch in pbar:
+        rgb = batch["rgb"].to(device)        # [B, 3, 224, 224]
+        q_gt = batch["rotation"].to(device)  # [B, 4]
+
+        optimizer.zero_grad()
+
+        q_pred = model(rgb)
+        loss = criterion(q_pred, q_gt)
+
+        loss.backward()
+        optimizer.step()
+
+        running_train_loss += loss.item() * rgb.size(0)
+        pbar.set_postfix(train_loss=loss.item())
+
+    scheduler.step()
+
+    train_epoch_loss = running_train_loss / len(train_loader.dataset)
+
+    # =========================
+    # VALIDATION
+    # =========================
+    model.eval()
+    running_valid_loss = 0.0
+
+    with torch.no_grad():
+        pbar = tqdm(valid_loader, desc=f"Epoch {epoch+1}/{num_epochs} [VAL]")
+
+        for batch in pbar:
+            rgb = batch["rgb"].to(device)
+            q_gt = batch["rotation"].to(device)
+
+            q_pred = model(rgb)
+            loss = criterion(q_pred, q_gt)
+
+            running_valid_loss += loss.item() * rgb.size(0)
+            pbar.set_postfix(val_loss=loss.item())
+
+    valid_epoch_loss = running_valid_loss / len(valid_loader.dataset)
+
+    # =========================
+    # LOGGING + CHECKPOINT
+    # =========================
+    print(
+        f"Epoch {epoch+1}/{num_epochs} | "
+        f"Train Loss: {train_epoch_loss:.6f} | "
+        f"Val Loss: {valid_epoch_loss:.6f} | "
+        f"LR: {scheduler.get_last_lr()[0]:.2e}"
+    )
+
+    if valid_epoch_loss < best_loss:
+        best_loss = valid_epoch_loss
+        torch.save(model.state_dict(), "pose_resnet_best.pth")
+        print("Saved new best model (based on validation)")
+
+
+
+
+
+
+
+"""from src.datasets.scene import LinemodSceneDataset
 from src.datasets.scene import GTDetections
 from src.datasets.resnet import ResNetDataset
 from torch.utils.data import DataLoader, Subset
@@ -146,7 +278,7 @@ for epoch in range(num_epochs):
         if bad_epochs >= patience:
             print("Early stopping")
             break
-
+"""
 
 
 
