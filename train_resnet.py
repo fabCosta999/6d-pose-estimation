@@ -51,7 +51,7 @@ print("dataloader pronto")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model = PoseResNet(pretrained=True).to(device)
-criterion = SymmetryAwareGeodesicLoss()
+criterion = SymmetryAwareGeodesicLoss(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 scheduler = optim.lr_scheduler.StepLR(
     optimizer, step_size=15, gamma=0.5
