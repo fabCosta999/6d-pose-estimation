@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Subset
 
 print("started with new path")
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
-batch_size = 32
+batch_size = 64
 num_epochs = 50
 lr = 1e-4
 scene_ds = LinemodSceneDataset(
