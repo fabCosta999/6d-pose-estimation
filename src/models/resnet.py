@@ -34,6 +34,7 @@ class PoseResNet(nn.Module):
         # This is crucial for geometric stability.
         q = F.normalize(q, p=2, dim=1)
         return q
+  
 
 
 
@@ -44,41 +45,6 @@ class PoseResNet(nn.Module):
         return loss.mean()"""
 
 
-
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
-# from torchvision import models
-
-
-# from torchvision import models
-# from torchvision.models import ResNet50_Weights
-
-# class ResNetQuat(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         weights = ResNet50_Weights.DEFAULT
-#         self.backbone = models.resnet50(weights=weights)
-#         feat_dim = 2048
-#         self.backbone.fc = nn.Identity()
-#         self.head = nn.Linear(feat_dim, 4)
-
-#     def forward(self, x):
-#         x = self.backbone(x)
-#         q = self.head(x)
-#         q = F.normalize(q, dim=1)
-#         return q
-
-
-# """class QuaternionGeodesicLoss(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#     def forward(self, q_pred, q_gt):
-#         dot = torch.sum(q_pred * q_gt, dim=1)
-#         dot = torch.abs(dot)
-#         return (1 - dot).mean()
-    
-# """
 from enum import Enum
 
 class SymmetryType(Enum):

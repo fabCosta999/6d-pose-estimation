@@ -9,7 +9,7 @@ class ResNetDataset(Dataset):
         scene_dataset,
         detection_provider,
         img_size=224,
-        padding=0.1,
+        padding=0,
     ):
         self.scene_dataset = scene_dataset
         self.detection_provider = detection_provider

@@ -21,8 +21,7 @@ train_ds = ResNetDataset(
         scene_dataset=scene_ds,
         detection_provider=gt_detections,
         img_size=224,
-        padding=0.05,
-        enable_transform=True
+        padding=0
     )
 indices = list(range(len(train_ds)))
 random.seed(42)
