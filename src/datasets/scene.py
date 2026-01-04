@@ -5,15 +5,16 @@ import yaml
 import torchvision.transforms as transforms
 from PIL import Image
 from src.utils.quaternions import rotation_matrix_to_quaternion
+import numpy as np
 
 class LinemodSceneDataset(Dataset):
     CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
     OBJ_ID_TO_CLASS = {obj_id: i for i, obj_id in enumerate(CLASSES)}
 
-    def __init__(self, dataset_root, split="train"):
+    def __init__(self, dataset_root, split="train", split_ratio=0.8, seed=42):
+        np.random.seed(seed) 
         self.dataset_root = Path(dataset_root)
         self.split = split
-
         self.samples = []
         self.gt_data = {}
 
@@ -22,11 +23,16 @@ class LinemodSceneDataset(Dataset):
 
             rgb_dir = obj_dir / "rgb"
             num_images = len(list(rgb_dir.glob("*.png")))
-            split_point = int(0.8 * num_images)
+
+
+            indexes = np.arange(num_images)
+            np.random.shuffle(indexes)
+            
+            split_point = int(split_ratio * num_images)
             if split == "train":
-                img_ids = range(0, split_point)
+                img_ids = indexes[:split_point]
             else:
-                img_ids = range(split_point, num_images)
+                img_ids = indexes[split_point:]
 
             for img_id in img_ids:
                 self.samples.append((obj_id, img_id))
@@ -70,32 +76,33 @@ class LinemodSceneDataset(Dataset):
         rgb = self.rgb_transform(img)
         depth = self.depth_transform(depth)
 
-        objects = []
-
+        object = None
         for entry in self.gt_data[obj_id][img_id]:
-            obj_id_gt = entry["obj_id"]
-            if obj_id_gt not in self.OBJ_ID_TO_CLASS:
-                continue
+            if int(entry["obj_id"]) == obj_id:
+                object = entry
+                break                
 
-            R = torch.tensor(entry["cam_R_m2c"], dtype=torch.float32).view(3, 3)
-            q = rotation_matrix_to_quaternion(R)
-            t = torch.tensor(entry["cam_t_m2c"], dtype=torch.float32).view(3)
+        if object is None:
+            raise RuntimeError(
+                f"Object {obj_id} not found in image {img_id}"
+            )
 
-            objects.append({
-                "bbox": entry["obj_bb"],          # pixel
-                "label": self.OBJ_ID_TO_CLASS[obj_id_gt],
-                "rotation": q,
-                "translation":t, 
-            })
+        R = torch.tensor(object["cam_R_m2c"], dtype=torch.float32).view(3, 3)
+        q = rotation_matrix_to_quaternion(R)
+        t = torch.tensor(object["cam_t_m2c"], dtype=torch.float32).view(3)
 
         return {
             "img_path": img_path,
             "depth": depth * self.depth_scale,
             "cam_intrinsics": self.K,
             "rgb": rgb,
-            "objects": objects,
+            "bbox": object["obj_bb"],
+            "label": self.OBJ_ID_TO_CLASS[obj_id],
+            "rotation": q,
+            "translation":t, 
             "size": (W, H),
         }
+    
 
 
 
@@ -104,5 +111,12 @@ class GTDetections:
         self.scene_dataset = scene_dataset
 
     def __call__(self, idx):
-        # ritorna direttamente gli oggetti GT
-        return self.scene_dataset[idx]["objects"]
+        # ritorna direttamente l'oggetto GT
+        sample = self.scene_dataset[idx]
+        return {
+            "rgb": sample["rgb"],
+            "bbox": sample["bbox"],
+            "label": sample["label"],
+            "rotation": sample["rotation"],
+            "translation":sample["translation"],   
+        }
