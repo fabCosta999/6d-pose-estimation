@@ -6,12 +6,33 @@ from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.resnet import ResNetDataset
 import random 
 from torch.utils.data import DataLoader, Subset
+import csv
+import os
+import torchvision.utils as vutils
 
-print("started with new path")
+
+print("[INFO] starting...")
+
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 64
 num_epochs = 50
 lr = 1e-4
+log_dir = "/content/drive/MyDrive/machine_learning_project/logs"
+os.makedirs(log_dir, exist_ok=True)
+csv_path = os.path.join(log_dir, "training_log.csv")
+with open(csv_path, mode="w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow([
+        "epoch",
+        "train_loss",
+        "val_loss",
+        "train_angle_deg",
+        "val_angle_deg",
+        "lr"
+    ])
+img_log_dir = os.path.join(log_dir, "sample_inputs")
+os.makedirs(img_log_dir, exist_ok=True)
+print("[INFO] constructing datasets...")
 scene_ds = LinemodSceneDataset(
         dataset_root=dataset_root,
         split="train"
@@ -23,6 +44,7 @@ train_ds = ResNetDataset(
         img_size=224,
         padding=0
     )
+print("[INFO] datasets ready")
 indices = list(range(len(train_ds)))
 random.seed(42)
 random.shuffle(indices)
@@ -45,10 +67,7 @@ valid_loader = DataLoader(
     num_workers=2,
     pin_memory=True,
 )
-print("dataloader pronto")
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 model = PoseResNet(pretrained=True).to(device)
 criterion = SymmetryAwareGeodesicLoss(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
@@ -58,8 +77,10 @@ scheduler = optim.lr_scheduler.StepLR(
 
 num_epochs = 50
 best_loss = float("inf")
+images_saved = False
 
 for epoch in range(num_epochs):
+
     # =========================
     # TRAIN
     # =========================
@@ -87,6 +108,20 @@ for epoch in range(num_epochs):
         with torch.no_grad():
             angle = rotation_error_deg_symmetry_aware(q_pred, q_gt, label, device)
             running_angle += angle.sum().item()
+
+        if not images_saved:
+            images_saved = True
+            save_n = min(8, rgb.size(0))  
+            grid = vutils.make_grid(
+                rgb[:save_n].cpu(),
+                nrow=4,
+                normalize=True,
+                scale_each=True
+            )
+            vutils.save_image(
+                grid,
+                os.path.join(img_log_dir, "train_crops_epoch0.png")
+            )
 
     
 
@@ -131,6 +166,17 @@ for epoch in range(num_epochs):
         f"LR: {scheduler.get_last_lr()[0]:.2e} |"
         f"angle error: {valid_angle}"
     )
+
+    with open(csv_path, mode="a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            epoch + 1,
+            train_epoch_loss,
+            valid_epoch_loss,
+            train_angle,
+            valid_angle,
+            scheduler.get_last_lr()[0]
+        ])
 
     if valid_epoch_loss < best_loss:
         best_loss = valid_epoch_loss
