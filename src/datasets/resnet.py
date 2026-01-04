@@ -10,49 +10,24 @@ class ResNetDataset(Dataset):
         detection_provider,
         img_size=224,
         padding=0.1,
-        enable_transform=True,
     ):
         self.scene_dataset = scene_dataset
         self.detection_provider = detection_provider
         self.img_size = img_size
         self.padding = padding
 
-        if enable_transform:
-            self.transform = transforms.Compose([
-                transforms.Resize((img_size, img_size)),
-                transforms.ColorJitter(
-                    brightness=0.4,
-                    contrast=0.4,
-                    saturation=0.3,
-                    hue=0.05,
-                ),
-                transforms.RandomGrayscale(p=0.1),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                ),
-            ])
-        else:
-            self.transform = transforms.Compose([
-                transforms.Resize((img_size, img_size)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                ),
-            ])
-
-
-        # flat index: (scene_idx, det_idx)
-        self.index = []
-        for scene_idx in range(len(scene_dataset)): 
-            dets = detection_provider(scene_idx) 
-            for det_idx in range(len(dets)): 
-                self.index.append((scene_idx, det_idx))
+        
+        self.transform = transforms.Compose([
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
+        ])
 
     def __len__(self):
-        return len(self.index)
+        return len(self.scene_dataset)
 
     def crop_with_padding(self, img, bbox):
         x, y, w, h = bbox
@@ -78,14 +53,14 @@ class ResNetDataset(Dataset):
         return img.crop((x1, y1, x2, y2))
 
     def __getitem__(self, idx):
-        scene_idx, det_idx = self.index[idx]
-
-        scene = self.scene_dataset[scene_idx]
-        dets = self.detection_provider(scene_idx)
-        obj = dets[det_idx]
-
+        scene = self.scene_dataset[idx]
+        det = self.detection_provider(idx)
+        if det is None:
+            # print(f"missing detection {idx}")
+            return self.__getitem__((idx + 1) % len(self))
+        
         img = Image.open(scene["img_path"]).convert("RGB")
-        crop = self.crop_with_padding(img, obj["bbox"])
+        crop = self.crop_with_padding(img, det["bbox"])
         if crop is None:
             # salta sample rotto
             return self.__getitem__((idx + 1) % len(self))
@@ -93,6 +68,6 @@ class ResNetDataset(Dataset):
 
         return {
             "rgb": crop,
-            "label": obj["label"],
-            "rotation": obj["rotation"],
+            "label": det["label"],
+            "rotation": det["rotation"],
         }

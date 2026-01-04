@@ -11,19 +11,18 @@ def export_split(dataset, out_dir, split_name, indices):
     lbl_out.mkdir(parents=True, exist_ok=True)
     for new_id, ds_idx in enumerate(tqdm(indices, desc=f"Exporting {split_name}")):
         sample = dataset[ds_idx]
-        img = sample["rgb"]       
-        boxes = sample["boxes"]      
-        labels = sample["labels"]    
+        img = sample["rgb"]              
+        box = sample["box"].squeeze(0)      
+        label = int(sample["label"].item()) 
         fname = f"{new_id:06d}"
         img_pil = Image.fromarray(
             (img.permute(1, 2, 0).numpy() * 255).astype("uint8")
         )
         img_pil.save(img_out / f"{fname}.png")
-        label_path = lbl_out / f"{fname}.txt"
-        with open(label_path, "w") as f:
-            for box, cls in zip(boxes, labels):
-                xc, yc, w, h = box.tolist()
-                f.write(f"{cls} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
+        xc, yc, w, h = box.tolist()
+        with open(lbl_out / f"{fname}.txt", "w") as f:
+            f.write(f"{label} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
+                
 
 def create_data_yaml(dataset_dir):
     data_yaml = {
