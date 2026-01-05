@@ -101,6 +101,7 @@ for epoch in range(num_epochs):
         loss = criterion(q_pred, q_gt, label)
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
         optimizer.step()
 
         running_train_loss += loss.item() * rgb.size(0)

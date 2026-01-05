@@ -32,7 +32,7 @@ class PoseResNet(nn.Module):
         
         # Normalize quaternion to ensure valid rotation (unit length)
         # This is crucial for geometric stability.
-        q = F.normalize(q, p=2, dim=1)
+        q = F.normalize(q, p=2, dim=1, eps=1e-6)
         return q
   
 
@@ -73,7 +73,7 @@ def rotate_vector(q, v):
     t = 2 * torch.cross(q_vec, v, dim=1)
     v_rot = v + w * t + torch.cross(q_vec, t, dim=1)
 
-    return F.normalize(v_rot, dim=1)
+    return F.normalize(v_rot, dim=1, eps=1e-6)
 
 
 
@@ -111,11 +111,11 @@ def geodesic_angle(q1, q2):
     q1, q2: (..., 4)
     return: angolo in radianti
     """
-    q1 = F.normalize(q1, dim=-1)
-    q2 = F.normalize(q2, dim=-1)
+    q1 = F.normalize(q1, dim=-1, eps=1e-6)
+    q2 = F.normalize(q2, dim=-1, eps=1e-6)
 
     dot = torch.abs(torch.sum(q1 * q2, dim=-1))
-    dot = torch.clamp(dot, -1.0, 1.0)
+    dot = torch.clamp(dot, -1 + 1e-6, 1 - 1e-6)
 
     return 2 * torch.acos(dot)
 
@@ -134,8 +134,8 @@ class SymmetryAwareGeodesicLoss(nn.Module):
         q_pred, q_gt: (B, 4)
         labels: (B,)
         """
-        q_pred = F.normalize(q_pred, dim=1)
-        q_gt   = F.normalize(q_gt, dim=1)
+        q_pred = F.normalize(q_pred, dim=1, eps=1e-6)
+        q_gt   = F.normalize(q_gt, dim=1, eps=1e-6)
 
         losses = []
 
