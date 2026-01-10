@@ -22,16 +22,13 @@ def compute_depth_mean_std(
         for depth_path in tqdm(depth_files, desc=f"Obj {obj_id:02d}"):
             depth = np.array(Image.open(depth_path), dtype=np.float32)
 
-            # mask pixel validi (LINEMOD: 0 = invalid)
+            #(LINEMOD: 0 = invalid)
             valid_mask = depth > 0
             if not np.any(valid_mask):
                 continue
-
-            depth = depth[valid_mask] / depth_scale  # -> metri
-
+            depth = depth[valid_mask] / depth_scale  
             if max_depth_m is not None:
                 depth = depth[depth <= max_depth_m]
-
             sum_depth += depth.sum()
             sum_sq_depth += (depth ** 2).sum()
             num_pixels += depth.size
@@ -45,10 +42,10 @@ def compute_depth_mean_std(
 CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 
 mean_depth, std_depth = compute_depth_mean_std(
-    dataset_root="/content/6d-pose-estimation/data/Linemod_preprocessed",
+    dataset_root="data/Linemod_preprocessed",
     classes=CLASSES,
-    depth_scale=1000.0,   # mm → m
-    max_depth_m=2.0       # opzionale ma consigliato
+    depth_scale=1000.0,   
+    max_depth_m=2.0      
 )
 
 print(f"Depth mean: {mean_depth:.4f} m")
