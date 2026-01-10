@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SymmetryType, SYMMETRIC_QUATS
-from src.utils.quaternions import geodesic_angle, quat_mul, rotate_vector
+from src.utils.quaternions import geodesic_angle, quat_mul
 
 
 class SymmetryAwareGeodesicLoss(nn.Module):
