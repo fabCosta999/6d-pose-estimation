@@ -183,4 +183,5 @@ for epoch in range(num_epochs):
         best_loss = valid_epoch_loss
         torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning_project/pose_resnet_best.pth")
         print("Saved new best model")
+    torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning_project/pose_resnet_last.pth")
 
