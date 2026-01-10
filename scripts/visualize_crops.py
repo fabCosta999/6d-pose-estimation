@@ -2,7 +2,6 @@ import os
 import torch
 import torchvision.transforms as T
 from PIL import ImageDraw, ImageFont
-from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SymmetryType
 from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.resnet import ResNetDataset  
 
@@ -46,13 +45,11 @@ def save_one_image_per_class(dataset, out_dir="crops"):
         if class_id in saved:
             continue
 
-        sym = LINEMOD_SYMMETRIES.get(class_id, SymmetryType.NONE)
-
         pil_img = tensor_to_pil(img)
-        label_text = f"Class {class_id} | Symmetry: {sym.name}"
+        label_text = f"Class {class_id}"
         pil_img = draw_label(pil_img, label_text)
 
-        out_path = os.path.join(out_dir, f"class_{class_id}_{sym.name}.png")
+        out_path = os.path.join(out_dir, f"class_{class_id:02d}.png")
         pil_img.save(out_path)
 
         saved.add(class_id)
