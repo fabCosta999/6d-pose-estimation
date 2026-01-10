@@ -15,6 +15,8 @@ class RGBDDataset(Dataset):
         self.detection_provider = detection_provider
         self.img_size = img_size
         self.padding = padding
+        self.depth_mean = 0.9907
+        self.depth_std  = 0.3118
 
         self.rgb_transform = transforms.Compose([
             transforms.Resize((img_size, img_size)),
@@ -76,7 +78,9 @@ class RGBDDataset(Dataset):
         depth_crop = self.crop_with_padding(depth_img, det["bbox"])
         if depth_crop is None:
             return self.__getitem__((idx + 1) % len(self))
-        depth_crop = self.depth_transform(depth_crop) * self.scene_dataset.depth_scale
+        depth_crop = self.depth_transform(depth_crop)
+        depth_crop = depth_crop * self.scene_dataset.depth_scale
+        depth_crop = (depth_crop - self.depth_mean) / self.depth_std
 
         return {
             "rgb": rgb_crop,            # (3, H, W)
