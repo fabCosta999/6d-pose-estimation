@@ -45,7 +45,7 @@ def compute_depth_mean_std(
 CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 
 mean_depth, std_depth = compute_depth_mean_std(
-    dataset_root="/path/to/linemod",
+    dataset_root="/content/6d-pose-estimation/data/Linemod_preprocessed",
     classes=CLASSES,
     depth_scale=1000.0,   # mm → m
     max_depth_m=2.0       # opzionale ma consigliato
