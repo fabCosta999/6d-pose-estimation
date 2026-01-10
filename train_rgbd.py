@@ -1,7 +1,9 @@
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.models.rgbd import RGBDFusionNet, SymmetryAwareGeodesicLoss, rotation_error_deg_symmetry_aware
+from src.models.rgbd import RGBDFusionNet
+from src.models.losses.geodesic_loss import SymmetryAwareGeodesicLoss
+from src.utils.quaternions import rotation_error_deg_symmetry_aware
 from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.rgbd import RGBDDataset
 import random 
