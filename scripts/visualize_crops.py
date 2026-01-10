@@ -57,7 +57,7 @@ def save_one_image_per_class(dataset, out_dir="crops"):
 
         saved.add(class_id)
 
-        if len(saved) == len(set(dataset.class_ids)):
+        if len(saved) == 13:
             break
 
     print(f"Saved {len(saved)} images in '{out_dir}'")
