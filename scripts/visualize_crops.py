@@ -39,8 +39,9 @@ def save_one_image_per_class(dataset, out_dir="crops"):
 
     saved = set()
 
-    for img, class_id in dataset:
-        class_id = int(class_id)
+    for item in dataset:
+        class_id = item["label"]
+        img = item["rgb"]
 
         if class_id in saved:
             continue
