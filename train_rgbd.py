@@ -79,7 +79,6 @@ scheduler = optim.lr_scheduler.StepLR(
 
 num_epochs = 50
 best_loss = float("inf")
-images_saved = False
 
 for epoch in range(num_epochs):
 
@@ -92,7 +91,7 @@ for epoch in range(num_epochs):
 
     pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} [TRAIN]")
 
-    for batch in pbar:
+    for i, batch in enumerate(pbar):
         rgb = batch["rgb"].to(device)        # [B, 3, 224, 224]
         depth = batch["depth"].to(device)
         q_gt = batch["rotation"].to(device)  # [B, 4]
@@ -113,8 +112,7 @@ for epoch in range(num_epochs):
             angle = rotation_error_deg_symmetry_aware(q_pred, q_gt, label, device)
             running_angle += angle.sum().item()
 
-        if not images_saved:
-            images_saved = True
+        if epoch == 0:
             save_n = min(8, rgb.size(0))  
             grid = vutils.make_grid(
                 rgb[:save_n].cpu(),
@@ -124,7 +122,7 @@ for epoch in range(num_epochs):
             )
             vutils.save_image(
                 grid,
-                os.path.join(img_log_dir, "train_crops_epoch0.png")
+                os.path.join(img_log_dir, f"train_crops_epoch0_batch{i:04d}.png")
             )
 
     
