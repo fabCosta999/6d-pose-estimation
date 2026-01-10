@@ -62,7 +62,7 @@ class ResNetDataset(Dataset):
         img = Image.open(scene["img_path"]).convert("RGB")
         crop = self.crop_with_padding(img, det["bbox"])
         if crop is None:
-            # salta sample rotto
+            # skip broken sample
             return self.__getitem__((idx + 1) % len(self))
         crop = self.transform(crop)
 

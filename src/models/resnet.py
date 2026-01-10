@@ -38,11 +38,14 @@ class PoseResNet(nn.Module):
 
 
 
-"""class QuaternionLoss(nn.Module):
+"""
+NOT CONSIDERIN SYMMETRIES
+class QuaternionLoss(nn.Module):
     def forward(self, q_pred, q_gt):
         dot = torch.sum(q_pred * q_gt, dim=1)
         loss = 1.0 - torch.abs(dot)
-        return loss.mean()"""
+        return loss.mean()
+"""
 
 
 from enum import Enum

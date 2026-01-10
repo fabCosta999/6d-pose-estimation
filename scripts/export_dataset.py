@@ -7,10 +7,12 @@ from src.utils.export_yolo import create_data_yaml
 
 def main():
     out_dir = Path("data/dataset_yolo")
+    print("[INFO] constructing datasets...")
     train_scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="train") 
     test_scene_ds  = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
     train_ds = YoloDataset(train_scene_ds)
     test_ds = YoloDataset(test_scene_ds)
+    print("[INFO] datasets ready")
     indices = list(range(len(train_ds)))
     random.seed(42)
     random.shuffle(indices)
