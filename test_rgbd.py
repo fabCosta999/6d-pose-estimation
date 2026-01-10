@@ -1,9 +1,9 @@
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from src.datasets.resnet import ResNetDataset
+from src.datasets.rgbd import RGBDDataset
 from src.datasets.scene import LinemodSceneDataset, GTDetections
-from src.models.resnet import PoseResNet
+from src.models.rgbd import RGBDFusionNet
 from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
@@ -12,7 +12,7 @@ from src.utils.quaternions import rotation_error_deg_symmetry_aware
 
 scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
 dp = GTDetections(scene_ds)
-test_ds = ResNetDataset(
+test_ds = RGBDFusionNet(
     scene_dataset=scene_ds,
     detection_provider=dp,
     img_size=224,
@@ -28,7 +28,7 @@ test_loader = DataLoader(
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = PoseResNet(pretrained=False)
+model = RGBDFusionNet(pretrained=False)
 model = model.to(device)
 weight_path = "/content/drive/MyDrive/machine_learning_project/pose_resnet_best.pth"
 
@@ -50,9 +50,10 @@ with torch.no_grad():
     for batch in pbar:
         rgb = batch["rgb"].to(device)
         q_gt = batch["rotation"].to(device)
+        depth = batch["depth"].to(device)
         labels = batch["label"]  # CPU ok
 
-        q_pred = model(rgb)
+        q_pred = model(rgb, depth)
 
         errors = rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device)
 
