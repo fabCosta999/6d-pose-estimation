@@ -53,7 +53,6 @@ class LinemodSceneDataset(Dataset):
         self.depth_scale = cam_info.get("depth_scale", 1.0)
 
         self.rgb_transform = transforms.ToTensor()
-        self.depth_transform = transforms.ToTensor()
 
 
     def __len__(self):
@@ -69,12 +68,10 @@ class LinemodSceneDataset(Dataset):
         depth_path = base_dir / "depth" / f"{img_id:04d}.png"
 
         img = Image.open(img_path).convert("RGB")
-        depth = Image.open(depth_path)
 
         W, H = img.size
 
         rgb = self.rgb_transform(img)
-        depth = self.depth_transform(depth)
 
         object = None
         for entry in self.gt_data[obj_id][img_id]:
@@ -93,7 +90,7 @@ class LinemodSceneDataset(Dataset):
 
         return {
             "img_path": img_path,
-            "depth": depth * self.depth_scale,
+            "depth_path": depth_path, 
             "cam_intrinsics": self.K,
             "rgb": rgb,
             "bbox": object["obj_bb"],

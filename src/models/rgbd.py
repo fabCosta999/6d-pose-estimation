@@ -1,51 +1,60 @@
-import torchvision.models as models
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
 import torch
 
 
-class PoseResNet(nn.Module):
-    """
-    ResNet50-based architecture for 6D Pose Estimation (Rotation only).
-    Replaces the final classification head with a regression head for Quaternions.
-    """
-    def __init__(self, pretrained=True):
-        super(PoseResNet, self).__init__()
-        
-        # Load pre-trained ResNet50
-        # 'weights="DEFAULT"' is the modern way to load ImageNet weights in newer PyTorch versions
-        # If using older PyTorch, use pretrained=True
-        try:
-            weights = models.ResNet50_Weights.DEFAULT if pretrained else None
-            self.model = models.resnet50(weights=weights)
-        except:
-            self.model = models.resnet50(pretrained=pretrained)
-        
-        # Modify the fully connected layer
-        # ResNet50's output features are 2048. We need 4 (w, x, y, z).
-        num_ftrs = self.model.fc.in_features
-        self.model.fc = nn.Linear(num_ftrs, 4)
+class DepthNet(nn.Module):
+    def __init__(self):
+        super(DepthNet, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, 5, 2, 2); self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, 3, 2, 1); self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, 3, 2, 1); self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(128, 256, 3, 2, 1); self.bn4 = nn.BatchNorm2d(256)
+        self.conv5 = nn.Conv2d(256, 512, 3, 2, 1); self.bn5 = nn.BatchNorm2d(512)
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
     def forward(self, x):
-        # Forward pass
-        q = self.model(x)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x = self.pool(x)
+        return x.view(x.size(0), -1)
+    
+
+class RGBDFusionNet(nn.Module):
+    def __init__(self, pretrained=True):
+        super(RGBDFusionNet, self).__init__()
+ 
+        try:
+            weights = models.ResNet50_Weights.DEFAULT if pretrained else None
+            base_resnet = models.resnet50(weights=weights)
+        except:
+            base_resnet = models.resnet50(pretrained=pretrained)
+
+        self.rgb_encoder = nn.Sequential(*list(base_resnet.children())[:-1])
+        self.depth_encoder = DepthNet()
         
-        # Normalize quaternion to ensure valid rotation (unit length)
-        # This is crucial for geometric stability.
-        q = F.normalize(q, p=2, dim=1, eps=1e-6)
-        return q
-  
-
-
-
-"""
-NOT CONSIDERING SYMMETRIES
-class QuaternionLoss(nn.Module):
-    def forward(self, q_pred, q_gt):
-        dot = torch.sum(q_pred * q_gt, dim=1)
-        loss = 1.0 - torch.abs(dot)
-        return loss.mean()
-"""
+        # Fusion & Heads
+        self.fc1 = nn.Linear(2048 + 512, 1024)
+        self.drop = nn.Dropout(0.3)
+        
+        # Output Head
+        self.head = nn.Linear(1024, 4)  # Quaternion (4D)
+       
+    def forward(self, rgb, depth):
+        f_rgb = self.rgb_encoder(rgb).view(rgb.size(0), -1)
+        f_depth = self.depth_encoder(depth)
+        
+        # Concatenate features
+        f_fused = torch.cat((f_rgb, f_depth), dim=1)
+        
+        x = F.relu(self.fc1(f_fused))
+        x = self.drop(x)
+        
+        return F.normalize(self.head(x), p=2, dim=1)
 
 
 from enum import Enum
@@ -57,11 +66,12 @@ class SymmetryType(Enum):
 
 
 LINEMOD_SYMMETRIES = {
-    3:  SymmetryType.AXIAL,     # can
-    7: SymmetryType.DISCRETE,  # eggbox
-    8: SymmetryType.AXIAL,     # glue
-    9: SymmetryType.DISCRETE,  # holepuncher (approx)
+    5:  SymmetryType.AXIAL,     # can
+    10: SymmetryType.DISCRETE,  # eggbox
+    11: SymmetryType.AXIAL,     # glue
+    12: SymmetryType.DISCRETE,  # holepuncher (approx)
 }
+
 
 def rotate_vector(q, v):
     """
