@@ -18,18 +18,12 @@ class SymmetryAwareGeodesicLoss(nn.Module):
         """
         q_pred = F.normalize(q_pred, dim=1, eps=1e-6)
         q_gt   = F.normalize(q_gt, dim=1, eps=1e-6)
-
         losses = []
-
         for i in range(q_pred.size(0)):
             label = int(labels[i].item())
             sym = LINEMOD_SYMMETRIES.get(label, SymmetryType.NONE)
-
-            # ---------------- NONE ----------------
             if sym == SymmetryType.NONE:
                 loss = geodesic_angle(q_pred[i], q_gt[i])
-
-            # ---------------- DISCRETE ----------------
             elif sym == SymmetryType.DISCRETE:
                 q_syms = SYMMETRIC_QUATS[label].to(self.device)
                 q_gt_syms = quat_mul(
@@ -40,14 +34,5 @@ class SymmetryAwareGeodesicLoss(nn.Module):
                     q_pred[i].unsqueeze(0).expand_as(q_gt_syms),
                     q_gt_syms
                 ))
-
-            # ---------------- AXIAL ----------------
-            elif sym == SymmetryType.AXIAL:
-                z_pred = rotate_vector(q_pred[i:i+1], self.z_axis)[0]
-                z_gt   = rotate_vector(q_gt[i:i+1], self.z_axis)[0]
-
-                loss = 1 - torch.dot(z_pred, z_gt)
-
             losses.append(loss)
-
         return torch.stack(losses).mean()

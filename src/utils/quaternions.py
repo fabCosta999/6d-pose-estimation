@@ -1,4 +1,6 @@
 import torch
+import torch.nn.functional as F
+from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SymmetryType, SYMMETRIC_QUATS
 
 def rotation_matrix_to_quaternion(R):
     """
@@ -34,23 +36,7 @@ def rotation_matrix_to_quaternion(R):
             qz = 0.25 * s
 
     q = torch.tensor([qw, qx, qy, qz], dtype=torch.float32)
-    return q / torch.norm(q)  # normalizzazione fondamentale
-
-
-def rotate_vector(q, v):
-    """
-    q: (B, 4)
-    v: (3,)
-    """
-    q_vec = q[:, 1:]
-    w = q[:, :1]
-
-    v = v.unsqueeze(0).expand_as(q_vec)
-    t = 2 * torch.cross(q_vec, v, dim=1)
-    v_rot = v + w * t + torch.cross(q_vec, t, dim=1)
-
-    return F.normalize(v_rot, dim=1, eps=1e-6)
-
+    return q / torch.norm(q)  
 
 
 def quat_mul(q1, q2):
@@ -68,19 +54,6 @@ def quat_mul(q1, q2):
     ], dim=-1)
 
 
-q_id = torch.tensor([1., 0., 0., 0.])
-q_180_z = torch.tensor([0., 0., 0., 1.])
-
-SYMMETRIC_QUATS = {
-    7: torch.tensor([
-        [1., 0., 0., 0.],
-        [0., 0., 0., 1.],   # 180° z
-    ]),
-    9: torch.tensor([
-        [1., 0., 0., 0.],
-        [0., 0., 0., 1.],
-    ]),
-}
 
 def geodesic_angle(q1, q2):
     """
@@ -98,7 +71,6 @@ def geodesic_angle(q1, q2):
     
 
 def rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device):
-    z_axis = torch.tensor([0., 0., 1.], device=device)
     errors = []
 
     for i in range(q_pred.shape[0]):
@@ -111,24 +83,9 @@ def rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device):
         elif sym == SymmetryType.DISCRETE:
             err = discrete_angle_deg(q_pred[i], q_gt[i], label)
 
-        elif sym == SymmetryType.AXIAL:
-            err = axial_angle_deg(q_pred[i], q_gt[i], z_axis)
-
         errors.append(err)
 
     return torch.stack(errors)
-
-
-
-def axial_angle_deg(q_pred, q_gt, z_axis):
-    z_pred = rotate_vector(q_pred.unsqueeze(0), z_axis)[0]
-    z_gt   = rotate_vector(q_gt.unsqueeze(0), z_axis)[0]
-
-    cos = torch.dot(z_pred, z_gt)
-    cos = torch.clamp(cos, -1 + 1e-6, 1 - 1e-6)
-
-    angle = torch.acos(cos)
-    return torch.rad2deg(angle)
 
 
 def discrete_angle_deg(q_pred, q_gt, label):
@@ -147,6 +104,3 @@ def geodesic_angle_deg(q1, q2):
     dot = torch.clamp(dot, -1 + 1e-6, 1 - 1e-6)
     angle = 2 * torch.acos(dot)
     return torch.rad2deg(angle)
-
-
-

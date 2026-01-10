@@ -4,14 +4,11 @@ import torch
 class SymmetryType(Enum):
     NONE = 0
     DISCRETE = 1
-    AXIAL = 2
 
 
 LINEMOD_SYMMETRIES = {
-    3:  SymmetryType.AXIAL,     # can
     7: SymmetryType.DISCRETE,  # eggbox
-    8: SymmetryType.AXIAL,     # glue
-    9: SymmetryType.DISCRETE,  # holepuncher (approx)
+    8: SymmetryType.DISCRETE,  # glue
 }
 
 SYMMETRIC_QUATS = {
