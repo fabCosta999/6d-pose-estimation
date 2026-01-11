@@ -160,7 +160,7 @@ for epoch in range(num_epochs):
     for i, batch in enumerate(pbar):
         rgb = batch["rgb"].to(device)        # [B, 3, 64, 64]
         depth = batch["depth"].to(device)    # [B, 1, 64, 64]
-        box = batch["bbox"]       # [B, 4]
+        box = torch.as_tensor(batch["bbox"], dtype=torch.float32, device=device)      # [B, 4]
         t_gt = batch["translation"].to(device)  # [B, 3]
         
         optimizer.zero_grad()
@@ -223,7 +223,7 @@ for epoch in range(num_epochs):
         for batch in pbar:
             rgb = batch["rgb"].to(device)
             depth = batch["depth"].to(device)
-            box = batch["bbox"]
+            box = torch.as_tensor(batch["bbox"], dtype=torch.float32, device=device)
             t_gt = batch["translation"].to(device)
 
             weight_map = model(torch.cat([rgb, depth], dim=1))
