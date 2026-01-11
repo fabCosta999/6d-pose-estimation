@@ -8,6 +8,18 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 from src.utils.quaternions import rotation_error_deg_symmetry_aware
+import os
+import csv
+from torchvision.utils import save_image
+
+
+results_dir = "/content/drive/machine_learning/eval_results_rgbd"
+os.makedirs(results_dir, exist_ok=True)
+os.makedirs(f"{results_dir}/best", exist_ok=True)
+os.makedirs(f"{results_dir}/worst", exist_ok=True)
+
+best_per_class = {}
+worst_per_class = {}
 
 
 scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
@@ -57,8 +69,27 @@ with torch.no_grad():
 
         errors = rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device)
 
-        for err, lbl in zip(errors.cpu().numpy(), labels.numpy()):
-            errors_per_class[int(lbl)].append(err)
+
+        for i in range(len(errors)):
+            err = float(errors[i].cpu().item())
+            cls = int(labels[i].item())
+
+            errors_per_class[cls].append(err)
+
+            # ---------- BEST ----------
+            if cls not in best_per_class or err < best_per_class[cls]["error"]:
+                best_per_class[cls] = {
+                    "error": err,
+                    "rgb": rgb[i].cpu(),
+                }
+
+            # ---------- WORST ----------
+            if cls not in worst_per_class or err > worst_per_class[cls]["error"]:
+                worst_per_class[cls] = {
+                    "error": err,
+                    "rgb": rgb[i].cpu(),
+                }
+
 print("\n" + "="*60)
 print("POSE ESTIMATION RESULTS (per class)")
 print("="*60)
@@ -92,4 +123,61 @@ print(f"  Median error: {np.median(all_errors):.2f}°")
 print(f"  Acc < 10°: {np.mean(all_errors < 10)*100:.2f}%")
 print(f"  Acc < 20°: {np.mean(all_errors < 20)*100:.2f}%")
 print("="*60)
+
+csv_path = f"{results_dir}/results_per_class.csv"
+
+with open(csv_path, mode="w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow([
+        "class",
+        "samples",
+        "mean_error",
+        "median_error",
+        "acc_<5",
+        "acc_<10",
+        "acc_<20"
+    ])
+
+    all_errors = []
+
+    for cls in sorted(errors_per_class.keys()):
+        errs = np.array(errors_per_class[cls])
+        all_errors.extend(errs.tolist())
+
+        writer.writerow([
+            cls,
+            len(errs),
+            errs.mean(),
+            np.median(errs),
+            np.mean(errs < 5) * 100,
+            np.mean(errs < 10) * 100,
+            np.mean(errs < 20) * 100,
+        ])
+
+    all_errors = np.array(all_errors)
+
+    writer.writerow([])
+    writer.writerow([
+        "OVERALL",
+        len(all_errors),
+        all_errors.mean(),
+        np.median(all_errors),
+        "",
+        np.mean(all_errors < 10) * 100,
+        np.mean(all_errors < 20) * 100,
+    ])
+
+
+for cls in best_per_class:
+    save_image(
+        best_per_class[cls]["rgb"],
+        f"{results_dir}/best/class_{cls}_err_{best_per_class[cls]['error']:.2f}.png",
+        normalize=True
+    )
+
+    save_image(
+        worst_per_class[cls]["rgb"],
+        f"{results_dir}/worst/class_{cls}_err_{worst_per_class[cls]['error']:.2f}.png",
+        normalize=True
+    )
 
