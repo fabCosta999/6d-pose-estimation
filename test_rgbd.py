@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from src.datasets.rgbd import RGBDDataset
 from src.datasets.scene import LinemodSceneDataset, GTDetections
-from src.models.rgbd import RGBDFusionNet
+from src.models.rgbd_posenet import RGBDFusionNet
 from collections import defaultdict
 import numpy as np
 from tqdm import tqdm

@@ -77,7 +77,6 @@ scheduler = optim.lr_scheduler.StepLR(
     optimizer, step_size=15, gamma=0.5
 )
 
-num_epochs = 50
 best_loss = float("inf")
 
 for epoch in range(num_epochs):

@@ -97,7 +97,6 @@ class LinemodSceneDataset(Dataset):
             "label": self.OBJ_ID_TO_CLASS[obj_id],
             "rotation": q,
             "translation":t, 
-            "size": (W, H),
         }
     
 
@@ -111,9 +110,9 @@ class GTDetections:
         # ritorna direttamente l'oggetto GT
         sample = self.scene_dataset[idx]
         return {
-            "rgb": sample["rgb"],
             "bbox": sample["bbox"],
             "label": sample["label"],
             "rotation": sample["rotation"],
-            "translation":sample["translation"],   
+            "translation":sample["translation"],
+            "size": sample["size"],
         }

@@ -1,7 +1,6 @@
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from PIL import Image
-import torch
 
 class RGBDDataset(Dataset):
     def __init__(
@@ -87,4 +86,6 @@ class RGBDDataset(Dataset):
             "depth": depth_crop,        # (1, H, W)
             "label": det["label"],
             "rotation": det["rotation"],
+            "translation": det["translation"],
+            "bbox": det["bbox"],
         }
