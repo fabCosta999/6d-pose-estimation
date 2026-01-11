@@ -105,7 +105,8 @@ scene_ds = LinemodSceneDataset(
         split="train"
     )
 cam_intrinsics = scene_ds[0]["cam_intrinsics"]
-gt_detections = GTDetections(scene_ds)
+print(cam_intrinsics)
+"""gt_detections = GTDetections(scene_ds)
 train_ds = RGBDDataset(
         scene_dataset=scene_ds,
         detection_provider=gt_detections,
@@ -278,3 +279,4 @@ for epoch in range(num_epochs):
         print("Saved new best model")
     torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning_project/enc_dec_last.pth")
 
+"""
