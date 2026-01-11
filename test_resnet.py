@@ -13,7 +13,7 @@ import csv
 from torchvision.utils import save_image
 
 
-results_dir = "/content/drive/machine_learning/eval_results_resnet"
+results_dir = "/content/drive/MyDrive/machine_learning_project/eval_results_resnet"
 os.makedirs(results_dir, exist_ok=True)
 os.makedirs(f"{results_dir}/best", exist_ok=True)
 os.makedirs(f"{results_dir}/worst", exist_ok=True)
@@ -41,7 +41,7 @@ test_loader = DataLoader(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = PoseResNet(pretrained=False)
 model = model.to(device)
-weight_path = "/content/drive/MyDrive/machine_learning_project/pose_resnet_best.pth"
+weight_path = "/content/drive/MyDrive/machine_learning_project/resnet50/train/weights/best.pth"
 
 try:
     model.load_state_dict(torch.load(weight_path, map_location=device))
