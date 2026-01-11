@@ -18,10 +18,10 @@ def depth_to_points(depth, K, uv_grid):
     K:       [3, 3]
     return:  [B, H, W, 3]
     """
-    fx = K[0, 0]
-    fy = K[1, 1]
-    cx = K[0, 2]
-    cy = K[1, 2]
+    fx = K[0, 0].item()
+    fy = K[1, 1].item()
+    cx = K[0, 2].item()
+    cy = K[1, 2].item()
 
     u = uv_grid[..., 0]
     v = uv_grid[..., 1]
