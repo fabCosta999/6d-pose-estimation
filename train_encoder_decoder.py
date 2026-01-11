@@ -160,7 +160,7 @@ for epoch in range(num_epochs):
     for i, batch in enumerate(pbar):
         rgb = batch["rgb"].to(device)        # [B, 3, 64, 64]
         depth = batch["depth"].to(device)    # [B, 1, 64, 64]
-        box = batch["bbox"].to(device)        # [B, 4]
+        box = batch["bbox"]       # [B, 4]
         t_gt = batch["translation"].to(device)  # [B, 3]
         
         optimizer.zero_grad()
