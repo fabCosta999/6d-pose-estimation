@@ -38,7 +38,6 @@ def build_uv_grid(box, H, W, device):
     box: [B, 4] -> (x, y, w, h) in pixel immagine
     return: uv_grid [B, H, W, 2]
     """
-    print(box)
     B = box.shape[0]
 
     x, y, bw, bh = box[:, 0], box[:, 1], box[:, 2], box[:, 3]
@@ -161,7 +160,7 @@ for epoch in range(num_epochs):
     for i, batch in enumerate(pbar):
         rgb = batch["rgb"].to(device)        # [B, 3, 64, 64]
         depth = batch["depth"].to(device)    # [B, 1, 64, 64]
-        box = torch.stack(batch["bbox"]).to(device)   # [B, 4]
+        box = torch.stack(batch["bbox"], dim=1).to(device)   # [B, 4]
         t_gt = batch["translation"].to(device)  # [B, 3]
         
         optimizer.zero_grad()
@@ -224,7 +223,7 @@ for epoch in range(num_epochs):
         for batch in pbar:
             rgb = batch["rgb"].to(device)
             depth = batch["depth"].to(device)
-            box = torch.stack(batch["bbox"]).to(device)   # [B, 4]
+            box = torch.stack(batch["bbox"], dim=1).to(device)   # [B, 4]
             t_gt = batch["translation"].to(device)
 
             weight_map = model(torch.cat([rgb, depth], dim=1))
