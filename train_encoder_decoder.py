@@ -223,7 +223,7 @@ for epoch in range(num_epochs):
         for batch in pbar:
             rgb = batch["rgb"].to(device)
             depth = batch["depth"].to(device)
-            box = batch["bbox"].to(device)
+            box = batch["bbox"]
             t_gt = batch["translation"].to(device)
 
             weight_map = model(rgb, depth)
