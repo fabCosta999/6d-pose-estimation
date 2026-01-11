@@ -97,6 +97,7 @@ class LinemodSceneDataset(Dataset):
             "label": self.OBJ_ID_TO_CLASS[obj_id],
             "rotation": q,
             "translation":t, 
+            "size": (W, H),
         }
     
 
@@ -114,5 +115,4 @@ class GTDetections:
             "label": sample["label"],
             "rotation": sample["rotation"],
             "translation":sample["translation"],
-            "size": sample["size"],
         }
