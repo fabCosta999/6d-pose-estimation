@@ -165,7 +165,7 @@ for epoch in range(num_epochs):
         
         optimizer.zero_grad()
 
-        weight_map = model(rgb, depth)           # [B,1,64,64]
+        weight_map = model(torch.cat([rgb, depth], dim=1))           # [B,1,64,64]
         valid_mask = (depth > 0).float()
 
         weights = spatial_softmax(weight_map, valid_mask)
@@ -226,7 +226,7 @@ for epoch in range(num_epochs):
             box = batch["bbox"]
             t_gt = batch["translation"].to(device)
 
-            weight_map = model(rgb, depth)
+            weight_map = model(torch.cat([rgb, depth], dim=1))
             valid_mask = (depth > 0).float()
             weights = spatial_softmax(weight_map, valid_mask)
             B, _, H, W = depth.shape
