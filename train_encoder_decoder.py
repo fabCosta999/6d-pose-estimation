@@ -18,14 +18,20 @@ def depth_to_points(depth, K, uv_grid):
     K:       [3, 3]
     return:  [B, H, W, 3]
     """
-    fx = K[0, 0].item()
-    fy = K[1, 1].item()
-    cx = K[0, 2].item()
-    cy = K[1, 2].item()
+    fx = K[0, 0]
+    fy = K[1, 1]
+    cx = K[0, 2]
+    cy = K[1, 2]
 
     u = uv_grid[..., 0]
     v = uv_grid[..., 1]
     z = depth.squeeze(1)
+
+
+    print(u)
+    print(cx)
+    print(z)
+    print(fx)
 
     x = (u - cx) * z / fx
     y = (v - cy) * z / fy
@@ -105,8 +111,7 @@ scene_ds = LinemodSceneDataset(
         split="train"
     )
 cam_intrinsics = scene_ds[0]["cam_intrinsics"]
-print(cam_intrinsics)
-"""gt_detections = GTDetections(scene_ds)
+gt_detections = GTDetections(scene_ds)
 train_ds = RGBDDataset(
         scene_dataset=scene_ds,
         detection_provider=gt_detections,
@@ -279,4 +284,3 @@ for epoch in range(num_epochs):
         print("Saved new best model")
     torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning_project/enc_dec_last.pth")
 
-"""
