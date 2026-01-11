@@ -12,7 +12,7 @@ from src.utils.quaternions import rotation_error_deg_symmetry_aware
 
 scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
 dp = GTDetections(scene_ds)
-test_ds = RGBDFusionNet(
+test_ds = RGBDDataset(
     scene_dataset=scene_ds,
     detection_provider=dp,
     img_size=224,
