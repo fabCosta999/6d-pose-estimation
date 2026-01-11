@@ -27,12 +27,6 @@ def depth_to_points(depth, K, uv_grid):
     v = uv_grid[..., 1]
     z = depth.squeeze(1)
 
-
-    print(u)
-    print(cx)
-    print(z)
-    print(fx)
-
     x = (u - cx) * z / fx
     y = (v - cy) * z / fy
 
@@ -44,6 +38,7 @@ def build_uv_grid(box, H, W, device):
     box: [B, 4] -> (x, y, w, h) in pixel immagine
     return: uv_grid [B, H, W, 2]
     """
+    print(box)
     B = box.shape[0]
 
     x, y, bw, bh = box[:, 0], box[:, 1], box[:, 2], box[:, 3]
