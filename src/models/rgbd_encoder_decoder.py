@@ -8,7 +8,7 @@ class EncoderDecoderWeightsNet(nn.Module):
         super().__init__()
 
         # ----- Encoder -----
-        self.conv1 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1); self.bn1 = nn.BatchNorm2d(16)
+        self.conv1 = nn.Conv2d(6, 16, kernel_size=3, stride=1, padding=1); self.bn1 = nn.BatchNorm2d(16)
         
         self.down1 = nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1); self.bn2 = nn.BatchNorm2d(32)
         self.down2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1); self.bn3 = nn.BatchNorm2d(64)

@@ -89,6 +89,17 @@ def entropy_loss_all(weights, eps=1e-8):
     entropy = -(w * torch.log(w + eps)).sum(dim=1)
     return entropy.mean()
 
+def make_coord_grid(H, W, device):
+    ys = torch.linspace(-1, 1, H, device=device)
+    xs = torch.linspace(-1, 1, W, device=device)
+    yy, xx = torch.meshgrid(ys, xs, indexing="ij")
+    grid = torch.stack([xx, yy], dim=0)   # [2, H, W]
+    return grid
+
+
+
+
+
 
 print("[INFO] starting with new loss...")
 
@@ -155,6 +166,7 @@ scheduler = optim.lr_scheduler.StepLR(
     optimizer, step_size=10, gamma=0.5
 )
 
+coord_grid = make_coord_grid(64, 64, device)  # [2,64,64]
 best_loss = float("inf")
 
 for epoch in range(num_epochs):
@@ -173,10 +185,10 @@ for epoch in range(num_epochs):
         depth = batch["depth"].to(device)    # [B, 1, 64, 64]
         box = torch.stack(batch["bbox"], dim=1).to(device)   # [B, 4]
         t_gt = batch["translation"].to(device)  # [B, 3]
-        
+        B = rgb.shape[0]
+        coord = coord_grid.unsqueeze(0).repeat(B, 1, 1, 1)
         optimizer.zero_grad()
-
-        logits = model(torch.cat([rgb, depth], dim=1))           # [B,1,64,64]
+        logits = model(torch.cat([rgb, depth, coord], dim=1))           
         valid_mask = (depth > 0).float()
 
         weights = spatial_softmax(logits, valid_mask)
