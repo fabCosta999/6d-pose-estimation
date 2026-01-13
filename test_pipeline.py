@@ -37,7 +37,6 @@ for r, scene in zip(results, ds):
     u_i = int(round(u))
     v_i = int(round(v))
 
-    # safety clamp (consigliato)
     H, W = depth.shape
     if not (0 <= u_i < W and 0 <= v_i < H):
         continue

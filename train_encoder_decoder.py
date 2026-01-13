@@ -65,9 +65,9 @@ def weighted_translation(points_3d, weights):
     return t
 
 
-def spatial_softmax(weight_map, mask=None):
+def spatial_softmax(weight_map, mask=None, tau=0.05):
     B, _, H, W = weight_map.shape
-    w = weight_map.view(B, -1)
+    w = weight_map.view(B, -1) / tau
 
     if mask is not None:
         m = mask.view(B, -1)
@@ -78,12 +78,13 @@ def spatial_softmax(weight_map, mask=None):
 
 
 
+
 print("[INFO] starting...")
 
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 64
 num_epochs = 50
-lr = 1e-3
+lr = 1e-4
 log_dir = "/content/drive/MyDrive/machine_learning_project/enc_dec_logs"
 os.makedirs(log_dir, exist_ok=True)
 csv_path = os.path.join(log_dir, "training_log.csv")
@@ -140,7 +141,7 @@ model = EncoderDecoderWeightsNet().to(device)
 criterion = torch.nn.SmoothL1Loss(beta=0.01)
 optimizer = optim.Adam(model.parameters(), lr=lr)
 scheduler = optim.lr_scheduler.StepLR(
-    optimizer, step_size=15, gamma=0.1
+    optimizer, step_size=15, gamma=0.5
 )
 
 best_loss = float("inf")
