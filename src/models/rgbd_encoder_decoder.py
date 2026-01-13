@@ -37,8 +37,4 @@ class EncoderDecoderWeightsNet(nn.Module):
         u2 = torch.cat([u2, x2], dim=1)         # 32x32x64
         u3 = F.relu(self.bn7(self.up3(u2)))     # 64x64x16
         w = self.out_conv(u3)                   # 64x64x1
-
-        B, _, H, W = w.shape
-        w = torch.softmax(w.view(B, -1), dim=1).view(B, 1, H, W)
-
         return w
