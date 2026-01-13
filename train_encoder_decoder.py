@@ -101,7 +101,7 @@ def make_coord_grid(H, W, device):
 
 
 
-print("[INFO] starting with new loss...")
+print("[INFO] starting...")
 
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 64
@@ -253,8 +253,12 @@ for epoch in range(num_epochs):
             depth = batch["depth"].to(device)
             box = torch.stack(batch["bbox"], dim=1).to(device)   # [B, 4]
             t_gt = batch["translation"].to(device)
+            B = rgb.shape[0]
+        
+            coord = coord_grid.unsqueeze(0).repeat(B, 1, 1, 1)
+        
 
-            weight_map = model(torch.cat([rgb, depth], dim=1))
+            weight_map = model(torch.cat([rgb, depth, coord], dim=1))
             valid_mask = (depth > 0).float()
             weights = spatial_softmax(weight_map, valid_mask)
             B, _, H, W = depth.shape
