@@ -82,8 +82,8 @@ print("[INFO] starting...")
 
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 64
-num_epochs = 30
-lr = 1e-4
+num_epochs = 50
+lr = 1e-3
 log_dir = "/content/drive/MyDrive/machine_learning_project/enc_dec_logs"
 os.makedirs(log_dir, exist_ok=True)
 csv_path = os.path.join(log_dir, "training_log.csv")
@@ -140,7 +140,7 @@ model = EncoderDecoderWeightsNet().to(device)
 criterion = torch.nn.SmoothL1Loss(beta=0.01)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 scheduler = optim.lr_scheduler.StepLR(
-    optimizer, step_size=10, gamma=0.5
+    optimizer, step_size=15, gamma=0.1
 )
 
 best_loss = float("inf")
