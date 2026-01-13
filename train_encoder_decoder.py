@@ -173,7 +173,7 @@ for epoch in range(num_epochs):
         uv_grid = build_uv_grid(box, H, W, device)
 
         points_3d = depth_to_points(
-            depth,
+            depth * train_ds.depth_std + train_ds.depth_mean,
             cam_intrinsics.to(device),
             uv_grid
         )
@@ -231,9 +231,9 @@ for epoch in range(num_epochs):
             B, _, H, W = depth.shape
             uv_grid = build_uv_grid(box, H, W, device)
             points_3d = depth_to_points(
-            depth,
-            cam_intrinsics.to(device),
-            uv_grid
+                depth * train_ds.depth_std + train_ds.depth_mean,
+                cam_intrinsics.to(device),
+                uv_grid
             )
 
             t_pred = weighted_translation(points_3d, weights)
