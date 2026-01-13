@@ -76,15 +76,26 @@ def spatial_softmax(weight_map, mask=None, tau=0.05):
     w = torch.softmax(w, dim=1)
     return w.view(B, 1, H, W)
 
+def global_softmax(logits, tau=0.1):
+    B, _, H, W = logits.shape
+    w = logits.view(B, -1) / tau
+    w = torch.softmax(w, dim=1)
+    return w.view(B, 1, H, W)
 
 
+def entropy_loss_all(weights, eps=1e-8):
+    B = weights.shape[0]
+    w = weights.view(B, -1)
+    entropy = -(w * torch.log(w + eps)).sum(dim=1)
+    return entropy.mean()
 
-print("[INFO] starting...")
+
+print("[INFO] starting with new loss...")
 
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 64
 num_epochs = 50
-lr = 1e-4
+lr = 4e-4
 log_dir = "/content/drive/MyDrive/machine_learning_project/enc_dec_logs"
 os.makedirs(log_dir, exist_ok=True)
 csv_path = os.path.join(log_dir, "training_log.csv")
@@ -141,7 +152,7 @@ model = EncoderDecoderWeightsNet().to(device)
 criterion = torch.nn.SmoothL1Loss(beta=0.01)
 optimizer = optim.Adam(model.parameters(), lr=lr)
 scheduler = optim.lr_scheduler.StepLR(
-    optimizer, step_size=15, gamma=0.5
+    optimizer, step_size=5, gamma=0.5
 )
 
 best_loss = float("inf")
@@ -165,10 +176,12 @@ for epoch in range(num_epochs):
         
         optimizer.zero_grad()
 
-        weight_map = model(torch.cat([rgb, depth], dim=1))           # [B,1,64,64]
+        logits = model(torch.cat([rgb, depth], dim=1))           # [B,1,64,64]
         valid_mask = (depth > 0).float()
 
-        weights = spatial_softmax(weight_map, valid_mask)
+        weights = spatial_softmax(logits, valid_mask)
+        weights_global  = global_softmax(logits, tau=0.1)
+
 
         B, _, H, W = depth.shape
         uv_grid = build_uv_grid(box, H, W, device)
@@ -180,7 +193,10 @@ for epoch in range(num_epochs):
         )
 
         t_pred = weighted_translation(points_3d, weights)
-        loss = criterion(t_pred, t_gt)
+        pose_loss = criterion(t_pred, t_gt)
+        ent_loss  = entropy_loss_all(weights_global)
+
+        loss = pose_loss + 1e-3 * ent_loss
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
