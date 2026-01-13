@@ -137,7 +137,6 @@ valid_loader = DataLoader(
 )
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = EncoderDecoderWeightsNet().to(device)
-#criterion = # MSE?
 criterion = torch.nn.SmoothL1Loss(beta=0.01)
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 scheduler = optim.lr_scheduler.StepLR(

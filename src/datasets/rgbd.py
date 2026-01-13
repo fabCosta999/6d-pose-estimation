@@ -14,8 +14,8 @@ class RGBDDataset(Dataset):
         self.detection_provider = detection_provider
         self.img_size = img_size
         self.padding = padding
-        self.depth_mean = 0.9907
-        self.depth_std  = 0.3118
+        self.depth_mean = 990.7
+        self.depth_std  = 311.8
 
         self.rgb_transform = transforms.Compose([
             transforms.Resize((img_size, img_size)),

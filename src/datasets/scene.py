@@ -50,8 +50,7 @@ class LinemodSceneDataset(Dataset):
         cam_info = next(iter(info.values()))
 
         self.K = torch.tensor(cam_info["cam_K"], dtype=torch.float32).view(3, 3)
-        self.depth_scale = cam_info.get("depth_scale", 1.0) / 1000 # converting it to meters
-
+        self.depth_scale = cam_info.get("depth_scale", 1.0)
         self.rgb_transform = transforms.ToTensor()
 
 
