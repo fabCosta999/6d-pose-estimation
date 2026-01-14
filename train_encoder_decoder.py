@@ -105,7 +105,7 @@ print("[INFO] starting...")
 
 dataset_root = "/content/6d-pose-estimation/data/Linemod_preprocessed"
 batch_size = 64
-num_epochs = 80
+num_epochs = 50
 lr = 1e-3
 log_dir = "/content/drive/MyDrive/machine_learning_project/enc_dec_logs"
 os.makedirs(log_dir, exist_ok=True)
