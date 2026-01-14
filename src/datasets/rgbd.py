@@ -19,6 +19,7 @@ class RGBDDataset(Dataset):
 
         self.rgb_transform = transforms.Compose([
             transforms.Resize((img_size, img_size)),
+
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
@@ -27,7 +28,8 @@ class RGBDDataset(Dataset):
         ])
 
         self.depth_transform = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
+            transforms.Resize((img_size, img_size),
+                              interpolation=transforms.InterpolationMode.NEAREST),
             transforms.ToTensor(),  # (1, H, W)
         ])
 
