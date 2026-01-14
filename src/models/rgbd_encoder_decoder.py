@@ -21,7 +21,7 @@ class EncoderDecoderWeightsNet(nn.Module):
         self.up3 = nn.ConvTranspose2d(64, 16, kernel_size=4, stride=2, padding=1); self.bn7 = nn.BatchNorm2d(16)
 
         # Output: 1 weight per pixel
-        self.out_conv = nn.Conv2d(16, 1, kernel_size=1)
+        self.out_conv = nn.Conv2d(32, 1, kernel_size=1)
 
     def forward(self, x):
         # ----- Encoder -----
@@ -36,5 +36,6 @@ class EncoderDecoderWeightsNet(nn.Module):
         u2 = F.relu(self.bn6(self.up2(u1)))     # 32x32x32
         u2 = torch.cat([u2, x2], dim=1)         # 32x32x64
         u3 = F.relu(self.bn7(self.up3(u2)))     # 64x64x16
+        u3 = torch.cat([u3, x1], dim=1) 
         w = self.out_conv(u3)                   # 64x64x1
         return w
