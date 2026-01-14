@@ -256,15 +256,16 @@ for epoch in range(num_epochs):
             B = rgb.shape[0]
         
             coord = coord_grid.unsqueeze(0).repeat(B, 1, 1, 1)
+            un_normalized_depth = depth * train_ds.depth_std + train_ds.depth_mean
         
 
             weight_map = model(torch.cat([rgb, depth, coord], dim=1))
-            valid_mask = (depth > 0).float()
+            valid_mask = (depth > 10).float()
             weights = spatial_softmax(weight_map, valid_mask)
             B, _, H, W = depth.shape
             uv_grid = build_uv_grid(box, H, W, device)
             points_3d = depth_to_points(
-                depth * train_ds.depth_std + train_ds.depth_mean,
+                un_normalized_depth,
                 cam_intrinsics.to(device),
                 uv_grid
             )
