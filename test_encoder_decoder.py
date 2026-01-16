@@ -124,7 +124,7 @@ test_ds = RGBDDataset(
     img_size=64,
     padding=0
 )
-cam_intrinsics = test_ds[0]["cam_intrinsics"]
+cam_intrinsics = scene_ds[0]["cam_intrinsics"]
 test_loader = DataLoader(
     test_ds,
     batch_size=32,
