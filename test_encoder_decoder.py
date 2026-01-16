@@ -7,30 +7,49 @@ from src.models.rgbd_encoder_decoder import EncoderDecoderWeightsNet
 from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
-from src.utils.quaternions import rotation_error_deg_symmetry_aware
 import os
 import csv
 from torchvision.utils import save_image
 
 
-def overlay_pixel_map(rgb, pixel_map, alpha=0.6):
+def prepare_weight_map(weight_map):
     """
-    rgb: Tensor [3, H, W] in [0,1]
-    pixel_map: Tensor [H, W] in [0,1]
+    weight_map: [1, H, W] oppure [H, W]
+    """
+    if weight_map.dim() == 3:
+        weight_map = weight_map.squeeze(0)
+
+    w = weight_map.clone()
+    w = w / (w.max() + 1e-8)   # normalizza per visualizzazione
+
+    return w.unsqueeze(0)
+
+
+def overlay_topk(rgb, weight_map, k=50, color="yellow"):
+    """
+    Evidenzia solo i top-k pixel per peso
     """
     rgb = rgb.clone()
 
-    if pixel_map.dim() == 3:
-        pixel_map = pixel_map.squeeze(0)
+    if weight_map.dim() == 3:
+        weight_map = weight_map.squeeze(0)
 
-    pixel_map = pixel_map.clamp(0, 1)
+    H, W = weight_map.shape
+    flat = weight_map.view(-1)
 
-    # colormap semplice: rosso
-    heat = torch.zeros_like(rgb)
-    heat[0] = pixel_map  # red channel
+    _, idx = torch.topk(flat, k)
+    mask = torch.zeros_like(flat)
+    mask[idx] = 1.0
+    mask = mask.view(H, W)
 
-    overlay = (1 - alpha) * rgb + alpha * heat
-    return overlay.clamp(0, 1)
+    if color == "red":
+        rgb[0] = torch.clamp(rgb[0] + mask, 0, 1)
+    elif color == "yellow":
+        rgb[0] = torch.clamp(rgb[0] + mask, 0, 1)
+        rgb[1] = torch.clamp(rgb[1] + mask, 0, 1)
+
+    return rgb
+
 
 
 def make_coord_grid(H, W, device):
@@ -137,7 +156,7 @@ test_loader = DataLoader(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = EncoderDecoderWeightsNet()
 model = model.to(device)
-weight_path = "/content/drive/MyDrive/machine_learning_project/enc_dec/enc_dec_best.pth"
+weight_path = "/content/drive/MyDrive/machine_learning_project/enc_dec/train/weights/best.pth"
 
 try:
     model.load_state_dict(torch.load(weight_path, map_location=device))
@@ -203,7 +222,9 @@ with torch.no_grad():
 
             rgb_i = rgb[i].cpu()
             w_i = weights[i].cpu()
-            overlay = overlay_pixel_map(rgb_i, w_i)
+            logits_i = logits[i].cpu()
+            overlay = overlay_topk(rgb_i, logits_i, k=100)
+            pixel_map = prepare_weight_map(w_i)
 
             # ---------- BEST ----------
             if cls not in best_per_class or el2 < best_per_class[cls]["error"]:
@@ -211,6 +232,7 @@ with torch.no_grad():
                     "error": el2,
                     "rgb": rgb_i,
                     "overlay": overlay,
+                    "pixel_map": pixel_map,
                 }
 
             # ---------- WORST ----------
@@ -219,6 +241,7 @@ with torch.no_grad():
                     "error": el2,
                     "rgb": rgb_i,
                     "overlay": overlay,
+                    "pixel_map": pixel_map,
                 }
 print("\n" + "="*70)
 print("TRANSLATION ERRORS (mm)")
@@ -298,6 +321,12 @@ for cls in best_per_class:
     )
 
     save_image(
+        best_per_class[cls]["pixel_map"],
+        f"{results_dir}/best/class_{cls}_err_{best_per_class[cls]['error']:.2f}_pixel_map.png",
+        normalize=True
+    )
+
+    save_image(
         worst_per_class[cls]["rgb"],
         f"{results_dir}/worst/class_{cls}_err_{worst_per_class[cls]['error']:.2f}_rgb.png",
         normalize=True
@@ -306,6 +335,12 @@ for cls in best_per_class:
     save_image(
         worst_per_class[cls]["overlay"],
         f"{results_dir}/worst/class_{cls}_err_{worst_per_class[cls]['error']:.2f}_overlay.png",
+        normalize=True
+    )
+
+    save_image(
+        worst_per_class[cls]["pixel_map"],
+        f"{results_dir}/best/class_{cls}_err_{best_per_class[cls]['error']:.2f}_pixel_map.png",
         normalize=True
     )
 
