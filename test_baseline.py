@@ -3,10 +3,9 @@ import torch
 from pathlib import Path
 from PIL import Image
 from ultralytics import YOLO
-
+import numpy as np
 from src.datasets.scene import LinemodSceneDataset
 from src.models.resnet import PoseResNet
-
 import torchvision.transforms as T
 
 resnet_tf = T.Compose([
@@ -146,10 +145,13 @@ for r, scene in zip(results, ds):
     # TRANSLATION (pinhole, GT bbox)
     # ---------------------------
     depth_img = Image.open(scene["depth_path"])
-    depth = torch.tensor(
-        depth_img, dtype=torch.float32
-    ) * scene["cam_intrinsics"].new_tensor(1.0)
+    depth_np = np.array(depth_img).astype(np.float32)
 
+    # se serve applicare depth_scale (LINEMOD spesso usa scale = 1)
+    depth_np *= scene["cam_intrinsics"].new_tensor(scene.get("depth_scale", 1.0))
+
+    depth = torch.from_numpy(depth_np)   # [H, W]
+    
     K = scene["cam_intrinsics"]
     fx, fy = K[0, 0], K[1, 1]
     cx, cy = K[0, 2], K[1, 2]
@@ -202,3 +204,8 @@ for r, scene in zip(results, ds):
     )
 
     errors.append(err.item())
+
+
+errors = torch.tensor(errors)
+print(f"ADD-S mean: {errors.mean():.2f} mm")
+print(f"ADD-S median: {errors.median():.2f} mm")
