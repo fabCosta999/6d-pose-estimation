@@ -246,13 +246,10 @@ for r, scene in zip(results, ds):
     obj_id = LinemodSceneDataset.CLASSES[obj_class]
 
     # ---------------------------
-    # LOAD RGB + DEPTH
+    # LOAD RGB + DEPTH (full)
     # ---------------------------
     img = Image.open(scene["img_path"]).convert("RGB")
     depth_img = Image.open(scene["depth_path"])
-    depth_np = np.array(depth_img).astype(np.float32)
-    depth_np *= ds.depth_scale
-    depth_full = torch.from_numpy(depth_np).to(device)  # [H,W]
 
     # ---------------------------
     # CROP
@@ -261,30 +258,37 @@ for r, scene in zip(results, ds):
     if crop_rgb_img is None:
         continue
 
-    # crop depth (same bbox)
     x, y, w, h = gt_bbox
     x1 = int(max(0, x))
     y1 = int(max(0, y))
-    x2 = int(min(depth_full.shape[1], x + w))
-    y2 = int(min(depth_full.shape[0], y + h))
+    x2 = int(min(depth_img.width,  x + w))
+    y2 = int(min(depth_img.height, y + h))
     if x2 <= x1 or y2 <= y1:
         continue
 
-    crop_depth = depth_full[y1:y2, x1:x2].unsqueeze(0).unsqueeze(0)  # [1,1,H,W]
+    crop_depth_img = depth_img.crop((x1, y1, x2, y2))
 
-    # ---------------------------
-    # ROTATION (RGBD Fusion Net)
-    # ---------------------------
+    # =========================================================
+    # ROTATION — RGBD Fusion Net (224)
+    # =========================================================
     rgb_224 = resnet_tf(crop_rgb_img).unsqueeze(0).to(device)
 
+    depth_224 = T.Compose([
+        T.Resize((224, 224), interpolation=T.InterpolationMode.NEAREST),
+        T.ToTensor(),
+    ])(crop_depth_img).unsqueeze(0).to(device)
+
+    depth_224 = depth_224 * ds.depth_scale
+    depth_224 = (depth_224 - ds.depth_mean) / ds.depth_std
+
     with torch.no_grad():
-        q_pred = rot_net(rgb_224)[0]
+        q_pred = rot_net(rgb_224, depth_224)[0]
 
     R_pred = quat_to_rot(q_pred)
 
-    # ---------------------------
-    # TRANSLATION (Encoder-Decoder)
-    # ---------------------------
+    # =========================================================
+    # TRANSLATION — Encoder Decoder (64)
+    # =========================================================
     rgb_64 = T.Compose([
         T.Resize((64, 64)),
         T.ToTensor(),
@@ -294,26 +298,26 @@ for r, scene in zip(results, ds):
         ),
     ])(crop_rgb_img).unsqueeze(0).to(device)
 
-    depth_64 = torch.nn.functional.interpolate(
-        crop_depth,
-        size=(64, 64),
-        mode="nearest"
-    )
+    depth_64 = T.Compose([
+        T.Resize((64, 64), interpolation=T.InterpolationMode.NEAREST),
+        T.ToTensor(),
+    ])(crop_depth_img).unsqueeze(0).to(device)
 
-    coord_grid = make_coord_grid(64, 64, device).unsqueeze(0)
+    depth_64 = depth_64 * ds.depth_scale
+    depth_64 = (depth_64 - ds.depth_mean) / ds.depth_std
 
-    enc_in = torch.cat([rgb_64, depth_64, coord_grid], dim=1)
+    coord = make_coord_grid(64, 64, device).unsqueeze(0)
+    enc_in = torch.cat([rgb_64, depth_64, coord], dim=1)
 
     with torch.no_grad():
         logits = enc_dec_net(enc_in)
 
-    # unnormalize depth (come in training)
+    # denormalize depth
     un_depth = depth_64 * ds.depth_std + ds.depth_mean
-    valid_mask = (un_depth > 10).float()  # mm
+    valid_mask = (un_depth > 10).float()
 
     weights = spatial_softmax(logits, valid_mask)
 
-    # build uv grid (pixel coords in original image)
     K = scene["cam_intrinsics"].to(device)
     box = torch.tensor(gt_bbox, device=device).unsqueeze(0)
     uv_grid = build_uv_grid(box, 64, 64, device)
@@ -321,9 +325,9 @@ for r, scene in zip(results, ds):
     points_3d = depth_to_points(un_depth, K, uv_grid)
     t_pred = weighted_translation(points_3d, weights)[0]
 
-    # ---------------------------
+    # =========================================================
     # ADD-S (con simmetrie)
-    # ---------------------------
+    # =========================================================
     pts = models_3d[obj_id]
 
     if LINEMOD_SYMMETRIES.get(obj_id, SymmetryType.NONE) == SymmetryType.DISCRETE:
@@ -332,12 +336,11 @@ for r, scene in zip(results, ds):
             q_gt_sym = quat_mul(q_gt, q_sym.to(device))
             R_gt_sym = quat_to_rot(q_gt_sym)
 
-            e = add_s(
+            errs.append(add_s(
                 pts,
                 R_pred, t_pred,
                 R_gt_sym, t_gt,
-            )
-            errs.append(e)
+            ))
 
         err = torch.stack(errs).min()
     else:
@@ -349,6 +352,7 @@ for r, scene in zip(results, ds):
         )
 
     errors.append(err.item())
+
 
 
 errors = torch.tensor(errors)
