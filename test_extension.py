@@ -234,6 +234,10 @@ results = yolo.predict(
     save=False,
 )
 
+
+depth_mean = 990.7
+depth_std  = 311.8
+
 for r, scene in zip(results, ds):
 
     # ---------------------------
@@ -279,7 +283,7 @@ for r, scene in zip(results, ds):
     ])(crop_depth_img).unsqueeze(0).to(device)
 
     depth_224 = depth_224 * ds.depth_scale
-    depth_224 = (depth_224 - ds.depth_mean) / ds.depth_std
+    depth_224 = (depth_224 - depth_mean) / depth_std
 
     with torch.no_grad():
         q_pred = rot_net(rgb_224, depth_224)[0]
@@ -304,7 +308,7 @@ for r, scene in zip(results, ds):
     ])(crop_depth_img).unsqueeze(0).to(device)
 
     depth_64 = depth_64 * ds.depth_scale
-    depth_64 = (depth_64 - ds.depth_mean) / ds.depth_std
+    depth_64 = (depth_64 - depth_mean) / depth_std
 
     coord = make_coord_grid(64, 64, device).unsqueeze(0)
     enc_in = torch.cat([rgb_64, depth_64, coord], dim=1)
@@ -313,7 +317,7 @@ for r, scene in zip(results, ds):
         logits = enc_dec_net(enc_in)
 
     # denormalize depth
-    un_depth = depth_64 * ds.depth_std + ds.depth_mean
+    un_depth = depth_64 * depth_std + depth_mean
     valid_mask = (un_depth > 10).float()
 
     weights = spatial_softmax(logits, valid_mask)
