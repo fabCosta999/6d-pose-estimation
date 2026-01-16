@@ -148,7 +148,7 @@ for r, scene in zip(results, ds):
     depth_np = np.array(depth_img).astype(np.float32)
 
     # se serve applicare depth_scale (LINEMOD spesso usa scale = 1)
-    depth_np *= scene["cam_intrinsics"].new_tensor(scene.get("depth_scale", 1.0))
+    depth_np *= ds.depth_scale
 
     depth = torch.from_numpy(depth_np)   # [H, W]
     
