@@ -107,7 +107,7 @@ yolo = YOLO("/content/drive/MyDrive/machine_learning_project/yolo11s/detect/trai
 
 # ResNet (rotazione)
 rot_net = PoseResNet(pretrained=False).to(device)
-rot_net.load_state_dict(torch.load("weights/pose_resnet.pt", map_location=device))
+rot_net.load_state_dict(torch.load("/content/drive/MyDrive/machine_learning_project/resnet50/train/weights/best.pth", map_location=device))
 rot_net.eval()
 
 # Dataset
