@@ -103,7 +103,7 @@ class PoseEvaluator:
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # YOLO
-yolo = YOLO("/content/drive/MyDrive/machine_learning_project/yolo11s/weights/best.pt")
+yolo = YOLO("/content/drive/MyDrive/machine_learning_project/yolo11s/detect/train/weights/best.pt")
 
 # ResNet (rotazione)
 rot_net = PoseResNet(pretrained=False).to(device)
