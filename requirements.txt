@@ -8,3 +8,4 @@ gdown
 ultralytics
 matplotlib
 tqdm
+trimesh>=4.0.0
