@@ -7,6 +7,7 @@ import numpy as np
 from src.datasets.scene import LinemodSceneDataset
 from src.models.resnet import PoseResNet
 import torchvision.transforms as T
+from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
 
 resnet_tf = T.Compose([
     T.Resize((224, 224)),
@@ -41,6 +42,18 @@ def load_linemod_models(models_dir, device="cpu"):
         pts = torch.tensor(mesh.vertices, dtype=torch.float32, device=device)
         models[obj_id] = pts
     return models
+
+
+def quat_mul(q1, q2):
+    # q = q1 ⊗ q2  (wxyz)
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    return torch.tensor([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2,
+    ], device=q1.device)
 
 
 
@@ -193,15 +206,31 @@ for r, scene in zip(results, ds):
     # ADD-S
     # ---------------------------
     R_pred = quat_to_rot(q_pred)
-    R_gt   = quat_to_rot(q_gt)
-
     pts = models_3d[obj_id]
 
-    err = add_s(
-        pts,
-        R_pred, t_pred,
-        R_gt,   t_gt,
-    )
+    if LINEMOD_SYMMETRIES.get(obj_id, SymmetryType.NONE) == SymmetryType.DISCRETE:
+        errs = []
+
+        for q_sym in SYMMETRIC_QUATS[obj_id]:
+            q_gt_sym = quat_mul(q_gt, q_sym.to(device))
+            R_gt_sym = quat_to_rot(q_gt_sym)
+
+            e = add_s(
+                pts,
+                R_pred, t_pred,
+                R_gt_sym, t_gt,
+            )
+            errs.append(e)
+
+        err = torch.stack(errs).min()
+
+    else:
+        R_gt = quat_to_rot(q_gt)
+        err = add_s(
+            pts,
+            R_pred, t_pred,
+            R_gt,   t_gt,
+        )
 
     errors.append(err.item())
 
