@@ -7,10 +7,13 @@ from src.models.rgbd_posenet import RGBDFusionNet
 from src.models.rgbd_encoder_decoder import EncoderDecoderWeightsNet
 import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
-from src.utils.models3d import load_linemod_models
+from src.utils.models3d import load_linemod_models, add_metric
 from src.utils.quaternions import quaternion_to_rotation_matrix, quat_mul
 from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
 from src.utils.pinhole import depth_to_points, weighted_translation
+from collections import defaultdict
+import os
+import csv
 
 resnet_tf = T.Compose([
     T.Resize((224, 224)),
@@ -34,28 +37,20 @@ def crop_rgb(img_pil, bbox):
         return None
     return img_pil.crop((x1, y1, x2, y2))
 
+def bbox_invalid(bbox):
+    x, y, w, h = bbox
+    return (w <= 1) or (h <= 1)
 
-@torch.no_grad()
-def add_s(
-    model_points,   # (N,3)
-    R_pred, t_pred, # (3,3), (3,)
-    R_gt,   t_gt,   # (3,3), (3,)
-):
-    """
-    returns scalar ADD-S
-    """
 
-    # Transform points
-    pts_pred = (R_pred @ model_points.T).T + t_pred
-    pts_gt   = (R_gt   @ model_points.T).T + t_gt
+log = defaultdict(lambda: {
+    "adds": [],
+    "bbox_missing": 0,
+    "false_positive": 0,
+    "bbox_invalid": 0,
+    "depth_missing": 0,
+    "total": 0,
+})
 
-    # Pairwise distances (N,N)
-    dists = torch.cdist(pts_pred, pts_gt, p=2)
-
-    # closest gt point for each pred point
-    min_dists, _ = dists.min(dim=1)
-
-    return min_dists.mean()
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -92,7 +87,7 @@ results = yolo.predict(
     imgsz=640,
     batch=16,
     device=device,
-    stream=True,
+    stream=False,
     save=False,
 )
 
@@ -105,11 +100,55 @@ for r, scene in zip(results, ds):
     # ---------------------------
     # GT
     # ---------------------------
-    gt_bbox = scene["bbox"]
     q_gt = scene["rotation"].to(device)
     t_gt = scene["translation"].to(device)
     obj_class = scene["label"]
     obj_id = LinemodSceneDataset.CLASSES[obj_class]
+    log[obj_id]["total"] += 1
+
+    # ---------------------------
+    # YOLO bbox
+    # ---------------------------
+
+    boxes = r.boxes
+
+    if boxes is None or len(boxes) == 0:
+        log[obj_id]["bbox_missing"] += 1
+        continue
+
+    xyxy = boxes.xyxy        
+    cls  = boxes.cls.long() 
+    conf = boxes.conf
+
+    mask = cls == obj_class
+    if mask.sum() == 0:
+        log[obj_id]["bbox_missing"] += 1
+        log[obj_id]["false_positive"] += len(cls)
+        continue
+
+
+    log[obj_id]["false_positive"] += int((~mask).sum())
+    if mask.sum() > 1:
+        log[obj_id]["false_positive"] += int(mask.sum() - 1)
+
+    idxs = torch.where(mask)[0]
+    best = idxs[conf[idxs].argmax()]
+
+    x1, y1, x2, y2 = xyxy[best]
+
+    bbox = (
+        x1.item(),
+        y1.item(),
+        (x2 - x1).item(),
+        (y2 - y1).item(),
+    )
+
+    if bbox_invalid(bbox):
+        log[obj_id]["bbox_invalid"] += 1
+        continue
+
+
+
 
     # ---------------------------
     # LOAD RGB + DEPTH (full)
@@ -117,19 +156,23 @@ for r, scene in zip(results, ds):
     img = Image.open(scene["img_path"]).convert("RGB")
     depth_img = Image.open(scene["depth_path"])
 
+    
+
     # ---------------------------
     # CROP
     # ---------------------------
-    crop_rgb_img = crop_rgb(img, gt_bbox)
+    crop_rgb_img = crop_rgb(img, bbox)
     if crop_rgb_img is None:
+        log[obj_id]["bbox_invalid"] += 1
         continue
 
-    x, y, w, h = gt_bbox
+    x, y, w, h = bbox
     x1 = int(max(0, x))
     y1 = int(max(0, y))
     x2 = int(min(depth_img.width,  x + w))
     y2 = int(min(depth_img.height, y + h))
     if x2 <= x1 or y2 <= y1:
+        log[obj_id]["bbox_invalid"] += 1
         continue
 
     crop_depth_img = depth_img.crop((x1, y1, x2, y2))
@@ -182,10 +225,14 @@ for r, scene in zip(results, ds):
     un_depth = depth_64 * depth_std + depth_mean
     valid_mask = (un_depth > 10).float()
 
+    if valid_mask.sum() == 0:
+        log[obj_id]["depth_missing"] += 1
+        continue
+
     weights = spatial_softmax(logits, valid_mask)
 
     K = scene["cam_intrinsics"].to(device)
-    box = torch.tensor(gt_bbox, device=device).unsqueeze(0)
+    box = torch.tensor(bbox, device=device).unsqueeze(0)
     uv_grid = build_uv_grid(box, 64, 64, device)
 
     points_3d = depth_to_points(un_depth, K, uv_grid)
@@ -196,13 +243,13 @@ for r, scene in zip(results, ds):
     # =========================================================
     pts = models_3d[obj_id]
 
-    if LINEMOD_SYMMETRIES.get(obj_id, SymmetryType.NONE) == SymmetryType.DISCRETE:
+    if LINEMOD_SYMMETRIES.get(obj_class, SymmetryType.NONE) == SymmetryType.DISCRETE:
         errs = []
-        for q_sym in SYMMETRIC_QUATS[obj_id]:
+        for q_sym in SYMMETRIC_QUATS[obj_class]:
             q_gt_sym = quat_mul(q_gt, q_sym.to(device))
             R_gt_sym = quaternion_to_rotation_matrix(q_gt_sym)
 
-            errs.append(add_s(
+            errs.append(add_metric(
                 pts,
                 R_pred, t_pred,
                 R_gt_sym, t_gt,
@@ -211,12 +258,13 @@ for r, scene in zip(results, ds):
         err = torch.stack(errs).min()
     else:
         R_gt = quaternion_to_rotation_matrix(q_gt)
-        err = add_s(
+        err = add_metric(
             pts,
             R_pred, t_pred,
             R_gt, t_gt,
         )
 
+    log[obj_id]["adds"].append(err.item())
     errors.append(err.item())
 
 
@@ -224,3 +272,33 @@ for r, scene in zip(results, ds):
 errors = torch.tensor(errors)
 print(f"ADD-S mean: {errors.mean():.2f} mm")
 print(f"ADD-S median: {errors.median():.2f} mm")
+
+out_dir = "/content/drive/MyDrive/machine_learning_project/extension_results"
+os.makedirs(out_dir, exist_ok=True)
+csv_path = os.path.join(out_dir, "linemod_eval_extension.csv")
+
+with open(csv_path, "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow([
+        "obj_id",
+        "num_samples",
+        "adds_mean_mm",
+        "adds_median_mm",
+        "bbox_missing",
+        "false_positive",
+        "bbox_invalid",
+        "depth_missing",
+    ])
+
+    for obj_id, d in sorted(log.items()):
+        adds = np.array(d["adds"])
+        writer.writerow([
+            obj_id,
+            d["total"],
+            adds.mean() if len(adds) > 0 else np.nan,
+            np.median(adds) if len(adds) > 0 else np.nan,
+            d["bbox_missing"],
+            d["false_positive"],
+            d["bbox_invalid"],
+            d["depth_missing"],
+        ])
