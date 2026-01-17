@@ -77,7 +77,7 @@ results = yolo.predict(
     imgsz=640,
     batch=16,
     device=device,
-    stream=False,
+    stream=True,
     save=False,
 )
 
