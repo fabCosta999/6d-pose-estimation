@@ -39,6 +39,17 @@ def rotation_matrix_to_quaternion(R):
     return q / torch.norm(q)  
 
 
+def quaternion_to_rotation_matrix(q):
+    # q: (4,) wxyz
+    q = q / q.norm()
+    w, x, y, z = q
+    return torch.tensor([
+        [1-2*(y*y+z*z), 2*(x*y-z*w),   2*(x*z+y*w)],
+        [2*(x*y+z*w),   1-2*(x*x+z*z), 2*(y*z-x*w)],
+        [2*(x*z-y*w),   2*(y*z+x*w),   1-2*(x*x+y*y)],
+    ], device=q.device)
+
+
 def quat_mul(q1, q2):
     """
     q1, q2: (..., 4)  [w, x, y, z]

@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 model = YOLO(
-    "/content/drive/MyDrive/machine_learning_project/yolo11s_8020/weights/best.pt"
+    "/content/drive/MyDrive/machine_learning_project/yolo11s/detect/train/weights/best.pt"
 )
 
 metrics = model.val(

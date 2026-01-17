@@ -9,96 +9,9 @@ from torch.utils.data import DataLoader, Subset
 import csv
 import os
 import torchvision.utils as vutils
-
-
-def depth_to_points(depth, K, uv_grid):
-    """
-    depth:   [B, 1, H, W]
-    uv_grid: [B, H, W, 2]
-    K:       [3, 3]
-    return:  [B, H, W, 3]
-    """
-    fx = K[0, 0]
-    fy = K[1, 1]
-    cx = K[0, 2]
-    cy = K[1, 2]
-
-    u = uv_grid[..., 0]
-    v = uv_grid[..., 1]
-    z = depth.squeeze(1)
-
-    x = (u - cx) * z / fx
-    y = (v - cy) * z / fy
-
-    return torch.stack([x, y, z], dim=-1)
-
-
-def build_uv_grid(box, H, W, device):
-    """
-    box: [B, 4] -> (x, y, w, h) in pixel immagine
-    return: uv_grid [B, H, W, 2]
-    """
-    B = box.shape[0]
-
-    x, y, bw, bh = box[:, 0], box[:, 1], box[:, 2], box[:, 3]
-
-    i = torch.arange(H, device=device).float()
-    j = torch.arange(W, device=device).float()
-    ii, jj = torch.meshgrid(i, j, indexing="ij")
-
-    ii = ii.unsqueeze(0).expand(B, -1, -1)
-    jj = jj.unsqueeze(0).expand(B, -1, -1)
-
-    u = x[:, None, None] + (jj + 0.5) * bw[:, None, None] / W
-    v = y[:, None, None] + (ii + 0.5) * bh[:, None, None] / H
-
-    return torch.stack([u, v], dim=-1)  # [B, H, W, 2]
-
-
-def weighted_translation(points_3d, weights):
-    """
-    points_3d: [B, H, W, 3]
-    weights:   [B, 1, H, W]
-    """
-    weights = weights.permute(0, 2, 3, 1)  # [B, H, W, 1]
-    t = (points_3d * weights).sum(dim=(1,2))
-    return t
-
-
-def spatial_softmax(weight_map, mask=None, tau=0.05):
-    B, _, H, W = weight_map.shape
-    w = weight_map.view(B, -1) / tau
-
-    if mask is not None:
-        m = mask.view(B, -1)
-        w = w.masked_fill(m == 0, -1e9)
-
-    w = torch.softmax(w, dim=1)
-    return w.view(B, 1, H, W)
-
-def global_softmax(logits, tau=0.1):
-    B, _, H, W = logits.shape
-    w = logits.view(B, -1) / tau
-    w = torch.softmax(w, dim=1)
-    return w.view(B, 1, H, W)
-
-
-def entropy_loss_all(weights, eps=1e-8):
-    B = weights.shape[0]
-    w = weights.view(B, -1)
-    entropy = -(w * torch.log(w + eps)).sum(dim=1)
-    return entropy.mean()
-
-def make_coord_grid(H, W, device):
-    ys = torch.linspace(-1, 1, H, device=device)
-    xs = torch.linspace(-1, 1, W, device=device)
-    yy, xx = torch.meshgrid(ys, xs, indexing="ij")
-    grid = torch.stack([xx, yy], dim=0)   # [2, H, W]
-    return grid
-
-
-
-
+from src.utils.grid import make_coord_grid, spatial_softmax, global_softmax, build_uv_grid
+from src.utils.pinhole import weighted_translation, depth_to_points
+from src.models.losses.entropy_loss import entropy_loss_all
 
 
 print("[INFO] starting...")
@@ -166,7 +79,7 @@ scheduler = optim.lr_scheduler.StepLR(
     optimizer, step_size=10, gamma=0.5
 )
 
-coord_grid = make_coord_grid(64, 64, device)  # [2,64,64]
+coord_grid = make_coord_grid(64, 64, device)  
 best_loss = float("inf")
 
 for epoch in range(num_epochs):
@@ -181,16 +94,16 @@ for epoch in range(num_epochs):
     pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} [TRAIN]")
 
     for i, batch in enumerate(pbar):
-        rgb = batch["rgb"].to(device)        # [B, 3, 64, 64]
-        depth = batch["depth"].to(device)    # [B, 1, 64, 64]
-        box = torch.stack(batch["bbox"], dim=1).to(device)   # [B, 4]
-        t_gt = batch["translation"].to(device)  # [B, 3]
+        rgb = batch["rgb"].to(device)       
+        depth = batch["depth"].to(device)    
+        box = torch.stack(batch["bbox"], dim=1).to(device)  
+        t_gt = batch["translation"].to(device)  
         B = rgb.shape[0]
         coord = coord_grid.unsqueeze(0).repeat(B, 1, 1, 1)
         optimizer.zero_grad()
         logits = model(torch.cat([rgb, depth, coord], dim=1))   
         un_normalized_depth = depth * train_ds.depth_std + train_ds.depth_mean        
-        valid_mask = (un_normalized_depth > 10).float() # 10 mm
+        valid_mask = (un_normalized_depth > 10).float() 
 
         weights = spatial_softmax(logits, valid_mask)
         weights_global  = global_softmax(logits, tau=0.1)

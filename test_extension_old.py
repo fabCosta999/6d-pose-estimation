@@ -1,4 +1,6 @@
+import trimesh
 import torch
+from pathlib import Path
 from PIL import Image
 from ultralytics import YOLO
 import numpy as np
@@ -7,10 +9,6 @@ from src.models.rgbd_posenet import RGBDFusionNet
 from src.models.rgbd_encoder_decoder import EncoderDecoderWeightsNet
 import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
-from src.utils.models3d import load_linemod_models
-from src.utils.quaternions import quaternion_to_rotation_matrix, quat_mul
-from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
-from src.utils.pinhole import depth_to_points, weighted_translation
 
 resnet_tf = T.Compose([
     T.Resize((224, 224)),
@@ -35,6 +33,31 @@ def crop_rgb(img_pil, bbox):
     return img_pil.crop((x1, y1, x2, y2))
 
 
+
+
+def load_linemod_models(models_dir, device="cpu"):
+    models = {}
+    for ply in Path(models_dir).glob("obj_*.ply"):
+        obj_id = int(ply.stem.split("_")[1])
+        mesh = trimesh.load(ply, process=False)
+        pts = torch.tensor(mesh.vertices, dtype=torch.float32, device=device)
+        models[obj_id] = pts
+    return models
+
+
+def quat_mul(q1, q2):
+    # q = q1 ⊗ q2  (wxyz)
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    return torch.tensor([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2,
+    ], device=q1.device)
+
+
+
 @torch.no_grad()
 def add_s(
     model_points,   # (N,3)
@@ -56,6 +79,121 @@ def add_s(
     min_dists, _ = dists.min(dim=1)
 
     return min_dists.mean()
+
+
+
+def quat_to_rot(q):
+    # q: (4,) wxyz
+    q = q / q.norm()
+    w, x, y, z = q
+    return torch.tensor([
+        [1-2*(y*y+z*z), 2*(x*y-z*w),   2*(x*z+y*w)],
+        [2*(x*y+z*w),   1-2*(x*x+z*z), 2*(y*z-x*w)],
+        [2*(x*z-y*w),   2*(y*z+x*w),   1-2*(x*x+y*y)],
+    ], device=q.device)
+
+
+
+class PoseEvaluator:
+    def __init__(self, models_3d):
+        self.models = models_3d  # dict[obj_id] -> (N,3)
+
+    def evaluate(self, obj_id, q_pred, t_pred, q_gt, t_gt):
+        R_pred = quat_to_rot(q_pred)
+        R_gt   = quat_to_rot(q_gt)
+
+        pts = self.models[obj_id]
+
+        return add_s(
+            pts,
+            R_pred, t_pred,
+            R_gt,   t_gt,
+        )
+
+
+def depth_to_points(depth, K, uv_grid):
+    """
+    depth:   [B, 1, H, W]
+    uv_grid: [B, H, W, 2]
+    K:       [3, 3]
+    return:  [B, H, W, 3]
+    """
+    fx = K[0, 0]
+    fy = K[1, 1]
+    cx = K[0, 2]
+    cy = K[1, 2]
+
+    u = uv_grid[..., 0]
+    v = uv_grid[..., 1]
+    z = depth.squeeze(1)
+
+    x = (u - cx) * z / fx
+    y = (v - cy) * z / fy
+
+    return torch.stack([x, y, z], dim=-1)
+
+
+def build_uv_grid(box, H, W, device):
+    """
+    box: [B, 4] -> (x, y, w, h) in pixel immagine
+    return: uv_grid [B, H, W, 2]
+    """
+    B = box.shape[0]
+
+    x, y, bw, bh = box[:, 0], box[:, 1], box[:, 2], box[:, 3]
+
+    i = torch.arange(H, device=device).float()
+    j = torch.arange(W, device=device).float()
+    ii, jj = torch.meshgrid(i, j, indexing="ij")
+
+    ii = ii.unsqueeze(0).expand(B, -1, -1)
+    jj = jj.unsqueeze(0).expand(B, -1, -1)
+
+    u = x[:, None, None] + (jj + 0.5) * bw[:, None, None] / W
+    v = y[:, None, None] + (ii + 0.5) * bh[:, None, None] / H
+
+    return torch.stack([u, v], dim=-1)  # [B, H, W, 2]
+
+
+def weighted_translation(points_3d, weights):
+    """
+    points_3d: [B, H, W, 3]
+    weights:   [B, 1, H, W]
+    """
+    weights = weights.permute(0, 2, 3, 1)  # [B, H, W, 1]
+    t = (points_3d * weights).sum(dim=(1,2))
+    return t
+
+
+def spatial_softmax(weight_map, mask=None, tau=0.05):
+    B, _, H, W = weight_map.shape
+    w = weight_map.view(B, -1) / tau
+
+    if mask is not None:
+        m = mask.view(B, -1)
+        w = w.masked_fill(m == 0, -1e9)
+
+    w = torch.softmax(w, dim=1)
+    return w.view(B, 1, H, W)
+
+
+
+def entropy_loss_all(weights, eps=1e-8):
+    B = weights.shape[0]
+    w = weights.view(B, -1)
+    entropy = -(w * torch.log(w + eps)).sum(dim=1)
+    return entropy.mean()
+
+def make_coord_grid(H, W, device):
+    ys = torch.linspace(-1, 1, H, device=device)
+    xs = torch.linspace(-1, 1, W, device=device)
+    yy, xx = torch.meshgrid(ys, xs, indexing="ij")
+    grid = torch.stack([xx, yy], dim=0)   # [2, H, W]
+    return grid
+
+
+
+
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -150,7 +288,7 @@ for r, scene in zip(results, ds):
     with torch.no_grad():
         q_pred = rot_net(rgb_224, depth_224)[0]
 
-    R_pred = quaternion_to_rotation_matrix(q_pred)
+    R_pred = quat_to_rot(q_pred)
 
     # =========================================================
     # TRANSLATION — Encoder Decoder (64)
@@ -200,7 +338,7 @@ for r, scene in zip(results, ds):
         errs = []
         for q_sym in SYMMETRIC_QUATS[obj_id]:
             q_gt_sym = quat_mul(q_gt, q_sym.to(device))
-            R_gt_sym = quaternion_to_rotation_matrix(q_gt_sym)
+            R_gt_sym = quat_to_rot(q_gt_sym)
 
             errs.append(add_s(
                 pts,
@@ -210,7 +348,7 @@ for r, scene in zip(results, ds):
 
         err = torch.stack(errs).min()
     else:
-        R_gt = quaternion_to_rotation_matrix(q_gt)
+        R_gt = quat_to_rot(q_gt)
         err = add_s(
             pts,
             R_pred, t_pred,

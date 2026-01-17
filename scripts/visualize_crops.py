@@ -61,7 +61,9 @@ def save_one_image_per_class(dataset, out_dir="crops"):
 
 
 if __name__ == "__main__":
+    print("[INFO] constructing dataset...")
     scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
+    print("[INFO] dataset ready")
     gt = GTDetections(scene_ds)
     ds = ResNetDataset(scene_ds, gt)
     save_one_image_per_class(ds)

@@ -91,9 +91,9 @@ for epoch in range(num_epochs):
     pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} [TRAIN]")
 
     for i, batch in enumerate(pbar):
-        rgb = batch["rgb"].to(device)        # [B, 3, 224, 224]
+        rgb = batch["rgb"].to(device)        
         depth = batch["depth"].to(device)
-        q_gt = batch["rotation"].to(device)  # [B, 4]
+        q_gt = batch["rotation"].to(device)  
         label = batch["label"].to(device)
 
         optimizer.zero_grad()

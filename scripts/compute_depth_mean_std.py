@@ -6,8 +6,8 @@ from tqdm import tqdm
 def compute_depth_mean_std(
     dataset_root,
     classes,
-    depth_scale=1000.0,   # mm -> m
-    max_depth_m=None      
+    depth_scale=1.0,   
+    max_depth=None      
 ):
     dataset_root = Path(dataset_root)
 
@@ -27,8 +27,8 @@ def compute_depth_mean_std(
             if not np.any(valid_mask):
                 continue
             depth = depth[valid_mask] / depth_scale  
-            if max_depth_m is not None:
-                depth = depth[depth <= max_depth_m]
+            if max_depth is not None:
+                depth = depth[depth <= max_depth]
             sum_depth += depth.sum()
             sum_sq_depth += (depth ** 2).sum()
             num_pixels += depth.size
@@ -39,14 +39,20 @@ def compute_depth_mean_std(
     return mean, std
 
 
-CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
+def main():
+    CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 
-mean_depth, std_depth = compute_depth_mean_std(
-    dataset_root="data/Linemod_preprocessed",
-    classes=CLASSES,
-    depth_scale=1000.0,   
-    max_depth_m=2.0      
-)
+    mean_depth, std_depth = compute_depth_mean_std(
+        dataset_root="data/Linemod_preprocessed",
+        classes=CLASSES,
+        depth_scale=1.0,   
+        max_depth=2000.0      
+    )
 
-print(f"Depth mean: {mean_depth:.4f} m")
-print(f"Depth std : {std_depth:.4f} m")
+    print(f"Depth mean: {mean_depth:.4f} m")
+    print(f"Depth std : {std_depth:.4f} m")
+
+
+if __name__ == "__main__":
+    main()
+

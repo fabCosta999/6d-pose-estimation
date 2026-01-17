@@ -1,4 +1,6 @@
+import trimesh
 import torch
+from pathlib import Path
 from PIL import Image
 from ultralytics import YOLO
 import numpy as np
@@ -6,8 +8,6 @@ from src.datasets.scene import LinemodSceneDataset
 from src.models.resnet import PoseResNet
 import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
-from src.utils.quaternions import quaternion_to_rotation_matrix, quat_mul
-from src.utils.models3d import load_linemod_models
 
 resnet_tf = T.Compose([
     T.Resize((224, 224)),
@@ -33,6 +33,30 @@ def crop_rgb(img_pil, bbox):
 
 
 
+
+def load_linemod_models(models_dir, device="cpu"):
+    models = {}
+    for ply in Path(models_dir).glob("obj_*.ply"):
+        obj_id = int(ply.stem.split("_")[1])
+        mesh = trimesh.load(ply, process=False)
+        pts = torch.tensor(mesh.vertices, dtype=torch.float32, device=device)
+        models[obj_id] = pts
+    return models
+
+
+def quat_mul(q1, q2):
+    # q = q1 ⊗ q2  (wxyz)
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    return torch.tensor([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2,
+    ], device=q1.device)
+
+
+
 @torch.no_grad()
 def add_s(
     model_points,   # (N,3)
@@ -54,6 +78,37 @@ def add_s(
     min_dists, _ = dists.min(dim=1)
 
     return min_dists.mean()
+
+
+
+def quat_to_rot(q):
+    # q: (4,) wxyz
+    q = q / q.norm()
+    w, x, y, z = q
+    return torch.tensor([
+        [1-2*(y*y+z*z), 2*(x*y-z*w),   2*(x*z+y*w)],
+        [2*(x*y+z*w),   1-2*(x*x+z*z), 2*(y*z-x*w)],
+        [2*(x*z-y*w),   2*(y*z+x*w),   1-2*(x*x+y*y)],
+    ], device=q.device)
+
+
+
+class PoseEvaluator:
+    def __init__(self, models_3d):
+        self.models = models_3d  # dict[obj_id] -> (N,3)
+
+    def evaluate(self, obj_id, q_pred, t_pred, q_gt, t_gt):
+        R_pred = quat_to_rot(q_pred)
+        R_gt   = quat_to_rot(q_gt)
+
+        pts = self.models[obj_id]
+
+        return add_s(
+            pts,
+            R_pred, t_pred,
+            R_gt,   t_gt,
+        )
+
 
 
 
@@ -150,7 +205,7 @@ for r, scene in zip(results, ds):
     # ---------------------------
     # ADD-S
     # ---------------------------
-    R_pred = quaternion_to_rotation_matrix(q_pred)
+    R_pred = quat_to_rot(q_pred)
     pts = models_3d[obj_id]
 
     if LINEMOD_SYMMETRIES.get(obj_id, SymmetryType.NONE) == SymmetryType.DISCRETE:
@@ -158,7 +213,7 @@ for r, scene in zip(results, ds):
 
         for q_sym in SYMMETRIC_QUATS[obj_id]:
             q_gt_sym = quat_mul(q_gt, q_sym.to(device))
-            R_gt_sym = quaternion_to_rotation_matrix(q_gt_sym)
+            R_gt_sym = quat_to_rot(q_gt_sym)
 
             e = add_s(
                 pts,
@@ -170,7 +225,7 @@ for r, scene in zip(results, ds):
         err = torch.stack(errs).min()
 
     else:
-        R_gt = quaternion_to_rotation_matrix(q_gt)
+        R_gt = quat_to_rot(q_gt)
         err = add_s(
             pts,
             R_pred, t_pred,
