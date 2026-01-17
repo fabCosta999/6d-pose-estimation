@@ -50,7 +50,6 @@ rot_net.eval()
 # Dataset
 ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
 
-# Modelli 3D (UNA VOLTA)
 models_3d = load_linemod_models(
     "data/Linemod_preprocessed/models",
     device=device
@@ -182,10 +181,10 @@ for r, scene in zip(results, ds):
     R_pred = quaternion_to_rotation_matrix(q_pred)
     pts = models_3d[obj_id]
 
-    if LINEMOD_SYMMETRIES.get(obj_id, SymmetryType.NONE) == SymmetryType.DISCRETE:
+    if LINEMOD_SYMMETRIES.get(obj_class, SymmetryType.NONE) == SymmetryType.DISCRETE:
         errs = []
 
-        for q_sym in SYMMETRIC_QUATS[obj_id]:
+        for q_sym in SYMMETRIC_QUATS[obj_class]:
             q_gt_sym = quat_mul(q_gt, q_sym.to(device))
             R_gt_sym = quaternion_to_rotation_matrix(q_gt_sym)
 
