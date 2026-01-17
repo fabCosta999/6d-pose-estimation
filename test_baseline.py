@@ -1,3 +1,4 @@
+import csv
 import torch
 from PIL import Image
 from ultralytics import YOLO
@@ -8,7 +9,8 @@ import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
 from src.utils.quaternions import quaternion_to_rotation_matrix, quat_mul
 from src.utils.models3d import load_linemod_models, add_metric
-
+from collections import defaultdict
+import os
 
 
 resnet_tf = T.Compose([
@@ -34,7 +36,20 @@ def crop_rgb(img_pil, bbox):
     return img_pil.crop((x1, y1, x2, y2))
 
 
+def bbox_invalid(bbox):
+    x, y, w, h = bbox
+    return (w <= 1) or (h <= 1)
 
+
+log = defaultdict(lambda: {
+    "adds": [],
+
+    "bbox_missing": 0,
+    "false_positive": 0,
+    "bbox_invalid": 0,      # w<=0, h<=0, crop None, ecc.
+    "depth_missing": 0,     # Z<=0 o fuori immagine
+    "total": 0,             # immagini totali per classe
+})
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -54,13 +69,6 @@ models_3d = load_linemod_models(
     "data/Linemod_preprocessed/models",
     device=device
 )
-
-
-stats = {
-    "ok": 0,                 # bbox GT trovata
-    "missing": 0,            # bbox GT mancante
-    "false_positive": 0,     # bbox di classi sbagliate
-}
 
 errors_adds = []
 
@@ -82,6 +90,7 @@ for r, scene in zip(results, ds):
     t_gt = scene["translation"].to(device)
     obj_class = scene["label"]
     obj_id = LinemodSceneDataset.CLASSES[obj_class]
+    log[obj_id]["total"] += 1
 
 
     # ---------------------------
@@ -91,7 +100,7 @@ for r, scene in zip(results, ds):
     boxes = r.boxes
 
     if boxes is None or len(boxes) == 0:
-        stats["missing"] += 1
+        log[obj_id]["bbox_missing"] += 1
         continue
 
     xyxy = boxes.xyxy        
@@ -100,17 +109,14 @@ for r, scene in zip(results, ds):
 
     mask = cls == obj_class
     if mask.sum() == 0:
-        stats["missing"] += 1
-        stats["false_positive"] += len(cls)
+        log[obj_id]["bbox_missing"] += 1
+        log[obj_id]["false_positive"] += len(cls)
         continue
 
-    if mask.sum() == 1:
-        stats["ok"] += 1
-    else:
-        stats["ok"] += 1
-        stats["false_positive"] += int(mask.sum() - 1)
 
-    stats["false_positive"] += int((~mask).sum())
+    log[obj_id]["false_positive"] += int((~mask).sum())
+    if mask.sum() > 1:
+        log[obj_id]["false_positive"] += int(mask.sum() - 1)
 
     idxs = torch.where(mask)[0]
     best = idxs[conf[idxs].argmax()]
@@ -123,6 +129,10 @@ for r, scene in zip(results, ds):
         (x2 - x1).item(),
         (y2 - y1).item(),
     )
+
+    if bbox_invalid(bbox):
+        log[obj_id]["bbox_invalid"] += 1
+        continue
 
 
 
@@ -151,10 +161,12 @@ for r, scene in zip(results, ds):
 
     H, W = depth.shape
     if not (0 <= u_i < W and 0 <= v_i < H):
+        log[obj_id]["depth_missing"] += 1
         continue
 
     Z = depth[v_i, u_i]
     if Z <= 0:
+        log[obj_id]["depth_missing"] += 1
         continue
 
     X = (u - cx) * Z / fx
@@ -168,6 +180,7 @@ for r, scene in zip(results, ds):
     img = Image.open(scene["img_path"]).convert("RGB")
     crop = crop_rgb(img, bbox)
     if crop is None:
+        log[obj_id]["bbox_invalid"] += 1
         continue
 
     rgb = resnet_tf(crop).unsqueeze(0).to(device)
@@ -206,8 +219,43 @@ for r, scene in zip(results, ds):
         )
 
     errors_adds.append(err.item())
+    log[obj_id]["adds"].append(err.item())
 
 
 errors = torch.tensor(errors_adds)
 print(f"ADD-S mean: {errors.mean():.2f} mm")
 print(f"ADD-S median: {errors.median():.2f} mm")
+
+
+
+out_dir = "/content/drive/MyDrive/machine_learning_project/baseline_results"
+os.makedirs(out_dir, exist_ok=True)
+csv_path = os.path.join(out_dir, "linemod_eval.csv")
+
+with open(csv_path, "w", newline="") as f:
+    writer = csv.writer(f)
+
+    writer.writerow([
+        "obj_id",
+        "num_samples",
+        "adds_mean_mm",
+        "adds_median_mm",
+        "bbox_missing",
+        "false_positive",
+        "bbox_invalid",
+        "depth_missing",
+    ])
+
+    for obj_id, d in sorted(log.items()):
+        adds = np.array(d["adds"])
+
+        writer.writerow([
+            obj_id,
+            d["total"],
+            adds.mean() if len(adds) > 0 else np.nan,
+            np.median(adds) if len(adds) > 0 else np.nan,
+            d["bbox_missing"],
+            d["false_positive"],
+            d["bbox_invalid"],
+            d["depth_missing"],
+        ])
