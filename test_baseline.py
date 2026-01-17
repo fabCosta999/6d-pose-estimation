@@ -7,7 +7,9 @@ from src.models.resnet import PoseResNet
 import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
 from src.utils.quaternions import quaternion_to_rotation_matrix, quat_mul
-from src.utils.models3d import load_linemod_models
+from src.utils.models3d import load_linemod_models, add_metric
+
+
 
 resnet_tf = T.Compose([
     T.Resize((224, 224)),
@@ -33,28 +35,6 @@ def crop_rgb(img_pil, bbox):
 
 
 
-@torch.no_grad()
-def add_s(
-    model_points,   # (N,3)
-    R_pred, t_pred, # (3,3), (3,)
-    R_gt,   t_gt,   # (3,3), (3,)
-):
-    """
-    returns scalar ADD-S
-    """
-
-    # Transform points
-    pts_pred = (R_pred @ model_points.T).T + t_pred
-    pts_gt   = (R_gt   @ model_points.T).T + t_gt
-
-    # Pairwise distances (N,N)
-    dists = torch.cdist(pts_pred, pts_gt, p=2)
-
-    # closest gt point for each pred point
-    min_dists, _ = dists.min(dim=1)
-
-    return min_dists.mean()
-
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -77,7 +57,13 @@ models_3d = load_linemod_models(
 )
 
 
-errors = []
+stats = {
+    "ok": 0,                 # bbox GT trovata
+    "missing": 0,            # bbox GT mancante
+    "false_positive": 0,     # bbox di classi sbagliate
+}
+
+errors_adds = []
 
 results = yolo.predict(
     source="/content/6d-pose-estimation/data/dataset_yolo/test/images",
@@ -93,14 +79,57 @@ for r, scene in zip(results, ds):
     # ---------------------------
     # GT
     # ---------------------------
-    gt_bbox = scene["bbox"]
     q_gt = scene["rotation"].to(device)
     t_gt = scene["translation"].to(device)
     obj_class = scene["label"]
     obj_id = LinemodSceneDataset.CLASSES[obj_class]
 
+
     # ---------------------------
-    # TRANSLATION (pinhole, GT bbox)
+    # YOLO bbox
+    # ---------------------------
+
+    boxes = r.boxes
+
+    if boxes is None or len(boxes) == 0:
+        stats["missing"] += 1
+        continue
+
+    xyxy = boxes.xyxy        
+    cls  = boxes.cls.long() 
+    conf = boxes.conf
+
+    mask = cls == obj_class
+    if mask.sum() == 0:
+        stats["missing"] += 1
+        stats["false_positive"] += len(cls)
+        continue
+
+    if mask.sum() == 1:
+        stats["ok"] += 1
+    else:
+        stats["ok"] += 1
+        stats["false_positive"] += int(mask.sum() - 1)
+
+    stats["false_positive"] += int((~mask).sum())
+
+    idxs = torch.where(mask)[0]
+    best = idxs[conf[idxs].argmax()]
+
+    x1, y1, x2, y2 = xyxy[best]
+
+    bbox = (
+        x1.item(),
+        y1.item(),
+        (x2 - x1).item(),
+        (y2 - y1).item(),
+    )
+
+
+
+
+    # ---------------------------
+    # TRANSLATION (pinhole)
     # ---------------------------
     depth_img = Image.open(scene["depth_path"])
     depth_np = np.array(depth_img).astype(np.float32)
@@ -114,7 +143,7 @@ for r, scene in zip(results, ds):
     fx, fy = K[0, 0], K[1, 1]
     cx, cy = K[0, 2], K[1, 2]
 
-    x, y, w, h = gt_bbox
+    x, y, w, h = bbox
     u = x + w / 2
     v = y + h / 2
 
@@ -138,7 +167,7 @@ for r, scene in zip(results, ds):
     # ROTATION (ResNet)
     # ---------------------------
     img = Image.open(scene["img_path"]).convert("RGB")
-    crop = crop_rgb(img, gt_bbox)
+    crop = crop_rgb(img, bbox)
     if crop is None:
         continue
 
@@ -160,7 +189,7 @@ for r, scene in zip(results, ds):
             q_gt_sym = quat_mul(q_gt, q_sym.to(device))
             R_gt_sym = quaternion_to_rotation_matrix(q_gt_sym)
 
-            e = add_s(
+            e = add_metric(
                 pts,
                 R_pred, t_pred,
                 R_gt_sym, t_gt,
@@ -171,15 +200,15 @@ for r, scene in zip(results, ds):
 
     else:
         R_gt = quaternion_to_rotation_matrix(q_gt)
-        err = add_s(
+        err = add_metric(
             pts,
             R_pred, t_pred,
             R_gt,   t_gt,
         )
 
-    errors.append(err.item())
+    errors_adds.append(err.item())
 
 
-errors = torch.tensor(errors)
+errors = torch.tensor(errors_adds)
 print(f"ADD-S mean: {errors.mean():.2f} mm")
 print(f"ADD-S median: {errors.median():.2f} mm")

@@ -10,3 +10,24 @@ def load_linemod_models(models_dir, device="cpu"):
         pts = torch.tensor(mesh.vertices, dtype=torch.float32, device=device)
         models[obj_id] = pts
     return models
+
+def add_metric(
+    model_points,   # (N,3)
+    R_pred, t_pred, # (3,3), (3,)
+    R_gt,   t_gt,   # (3,3), (3,)
+):
+    """
+    returns scalar ADD
+    """
+
+    # Transform points
+    pts_pred = (R_pred @ model_points.T).T + t_pred
+    pts_gt   = (R_gt   @ model_points.T).T + t_gt
+
+    # Pairwise distances (N,N)
+    dists = torch.cdist(pts_pred, pts_gt, p=2)
+
+    # closest gt point for each pred point
+    min_dists, _ = dists.min(dim=1)
+
+    return min_dists.mean()
