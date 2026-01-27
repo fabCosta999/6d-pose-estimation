@@ -7,7 +7,6 @@ from src.datasets.resnet import ResNetDataset
 
 
 def tensor_to_pil(img_tensor):
-    """Assume img is (3,H,W) normalized in [0,1] or ImageNet stats."""
     img = img_tensor.clone().detach()
 
     # if ImageNet-normalized

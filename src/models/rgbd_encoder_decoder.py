@@ -20,7 +20,7 @@ class EncoderDecoderWeightsNet(nn.Module):
         self.up2 = nn.ConvTranspose2d(128, 32, kernel_size=4, stride=2, padding=1); self.bn6 = nn.BatchNorm2d(32)
         self.up3 = nn.ConvTranspose2d(64, 16, kernel_size=4, stride=2, padding=1); self.bn7 = nn.BatchNorm2d(16)
 
-        # Output: 1 weight per pixel
+        # Output: 1 unnormalized weight per pixel
         self.out_conv = nn.Conv2d(16, 1, kernel_size=1)
 
     def forward(self, x):

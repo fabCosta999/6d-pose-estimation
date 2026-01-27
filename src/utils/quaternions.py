@@ -3,10 +3,6 @@ import torch.nn.functional as F
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SymmetryType, SYMMETRIC_QUATS
 
 def rotation_matrix_to_quaternion(R):
-    """
-    R: tensor (3, 3)
-    ritorna: tensor (4,) [qw, qx, qy, qz]
-    """
     trace = R.trace()
 
     if trace > 0:
@@ -40,7 +36,6 @@ def rotation_matrix_to_quaternion(R):
 
 
 def quaternion_to_rotation_matrix(q):
-    # q: (4,) wxyz
     q = q / q.norm()
     w, x, y, z = q
     return torch.tensor([
@@ -51,9 +46,6 @@ def quaternion_to_rotation_matrix(q):
 
 
 def quat_mul(q1, q2):
-    """
-    q1, q2: (..., 4)  [w, x, y, z]
-    """
     w1, x1, y1, z1 = q1.unbind(-1)
     w2, x2, y2, z2 = q2.unbind(-1)
 
@@ -67,10 +59,6 @@ def quat_mul(q1, q2):
 
 
 def geodesic_angle(q1, q2):
-    """
-    q1, q2: (..., 4)
-    return: angolo in radianti
-    """
     q1 = F.normalize(q1, dim=-1, eps=1e-6)
     q2 = F.normalize(q2, dim=-1, eps=1e-6)
 

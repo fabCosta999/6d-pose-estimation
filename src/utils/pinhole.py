@@ -23,10 +23,6 @@ def depth_to_points(depth, K, uv_grid):
 
 
 def weighted_translation(points_3d, weights):
-    """
-    points_3d: [B, H, W, 3]
-    weights:   [B, 1, H, W]
-    """
-    weights = weights.permute(0, 2, 3, 1)  # [B, H, W, 1]
+    weights = weights.permute(0, 2, 3, 1)  
     t = (points_3d * weights).sum(dim=(1,2))
     return t

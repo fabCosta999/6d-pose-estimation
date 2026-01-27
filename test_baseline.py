@@ -45,10 +45,10 @@ log = defaultdict(lambda: {
     "adds": [],
 
     "bbox_missing": 0,
-    "false_positive": 0,
+    "false_positive": 0,    # other class predicted/multiple predictions
     "bbox_invalid": 0,      # w<=0, h<=0, crop None, ecc.
-    "depth_missing": 0,     # Z<=0 o fuori immagine
-    "total": 0,             # immagini totali per classe
+    "depth_missing": 0,     # Z<=0 or out of image
+    "total": 0,             # total images per class
 })
 
 
@@ -57,7 +57,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # YOLO
 yolo = YOLO("/content/drive/MyDrive/machine_learning_project/yolo11s/detect/train/weights/best.pt")
 
-# ResNet (rotazione)
+# ResNet 
 rot_net = PoseResNet(pretrained=False).to(device)
 rot_net.load_state_dict(torch.load("/content/drive/MyDrive/machine_learning_project/resnet50/train/weights/best.pth", map_location=device))
 rot_net.eval()
@@ -98,15 +98,12 @@ for r, scene in zip(results, ds):
     # ---------------------------
 
     boxes = r.boxes
-
     if boxes is None or len(boxes) == 0:
         log[obj_id]["bbox_missing"] += 1
         continue
-
     xyxy = boxes.xyxy        
     cls  = boxes.cls.long() 
     conf = boxes.conf
-
     mask = cls == obj_class
     if mask.sum() == 0:
         log[obj_id]["bbox_missing"] += 1
@@ -122,19 +119,15 @@ for r, scene in zip(results, ds):
     best = idxs[conf[idxs].argmax()]
 
     x1, y1, x2, y2 = xyxy[best]
-
     bbox = (
         x1.item(),
         y1.item(),
         (x2 - x1).item(),
         (y2 - y1).item(),
     )
-
     if bbox_invalid(bbox):
         log[obj_id]["bbox_invalid"] += 1
         continue
-
-
 
 
     # ---------------------------
@@ -142,11 +135,8 @@ for r, scene in zip(results, ds):
     # ---------------------------
     depth_img = Image.open(scene["depth_path"])
     depth_np = np.array(depth_img).astype(np.float32)
-
-    # se serve applicare depth_scale (LINEMOD spesso usa scale = 1)
     depth_np *= ds.depth_scale
-
-    depth = torch.from_numpy(depth_np)   # [H, W]
+    depth = torch.from_numpy(depth_np)   
     
     K = scene["cam_intrinsics"]
     fx, fy = K[0, 0], K[1, 1]

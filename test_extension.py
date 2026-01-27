@@ -221,7 +221,6 @@ for r, scene in zip(results, ds):
     with torch.no_grad():
         logits = enc_dec_net(enc_in)
 
-    # denormalize depth
     un_depth = depth_64 * depth_std + depth_mean
     valid_mask = (un_depth > 10).float()
 
@@ -239,7 +238,7 @@ for r, scene in zip(results, ds):
     t_pred = weighted_translation(points_3d, weights)[0]
 
     # =========================================================
-    # ADD-S (con simmetrie)
+    # ADD-S 
     # =========================================================
     pts = models_3d[obj_id]
 
