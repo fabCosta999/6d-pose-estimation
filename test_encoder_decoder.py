@@ -16,7 +16,7 @@ from src.utils.pinhole import depth_to_points, weighted_translation
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
 
-def enhance_contrast(x, t=0.7, k=12):
+def enhance_contrast(x, t=0.5, k=12):
     num = sigmoid(k * (x - t)) - sigmoid(-k * t)
     den = sigmoid(k * (1 - t)) - sigmoid(-k * t)
     return num / den
