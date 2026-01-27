@@ -13,8 +13,11 @@ from torchvision.utils import save_image
 from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
 from src.utils.pinhole import depth_to_points, weighted_translation
 
-def enhance_contrast(w, gamma=3):
-    return w ** gamma
+def enhance_contrast(x, t=0.7, k=12):
+    sig = torch.sigmoid
+    num = sig(k * (x - t)) - sig(-k * t)
+    den = sig(k * (1 - t)) - sig(-k * t)
+    return num / den
 
 def prepare_weight_map(weight_map):
     if weight_map.dim() == 3:
