@@ -54,6 +54,42 @@ REL_THRESHOLDS = [0.1, 0.2]    # diameter ratio
 # =======================
 # metrics per method
 # =======================
+def compute_global_metrics(errors):
+    all_errs = []
+    rows = {}
+
+    for obj_id, errs in errors.items():
+        all_errs.extend(errs)
+
+    all_errs = np.array(all_errs)
+
+    # media diametri pesata per numero di sample
+    all_ds = []
+    for obj_id, errs in errors.items():
+        all_ds.extend([diameters[obj_id]] * len(errs))
+    all_ds = np.array(all_ds)
+
+    rows["obj_id"] = "ALL"
+    rows["num_samples"] = len(all_errs)
+    rows["adds_mean_mm"] = all_errs.mean()
+    rows["adds_median_mm"] = np.median(all_errs)
+
+    # AUC@0.1d globale (usando diametro per-sample)
+    max_errs = 0.1 * all_ds
+    xs = np.linspace(0, max_errs.max(), 1000)
+    ys = [(all_errs < x).mean() for x in xs]
+    rows["auc_0.1d"] = np.trapz(ys, xs) / max_errs.max() * 100
+
+    for t in ABS_THRESHOLDS:
+        rows[f"acc_<_{t}mm"] = (all_errs < t).mean() * 100
+
+    for r in REL_THRESHOLDS:
+        rows[f"acc_<_{int(r*100)}pct_d"] = (all_errs < r * all_ds).mean() * 100
+
+    return rows
+
+
+
 def compute_metrics(errors):
     rows = []
 
@@ -64,8 +100,8 @@ def compute_metrics(errors):
         row = {
             "obj_id": obj_id,
             "num_samples": len(errs),
-            "add_mean_mm": errs.mean(),
-            "add_median_mm": np.median(errs),
+            "adds_mean_mm": errs.mean(),
+            "adds_median_mm": np.median(errs),
             "auc_0.1d": add_auc(errs, d) * 100,
         }
 
@@ -87,6 +123,16 @@ df_extension = compute_metrics(extension)
 # =======================
 df_baseline.to_csv(f"{OUT_DIR}/metrics_baseline.csv", index=False)
 df_extension.to_csv(f"{OUT_DIR}/metrics_extension.csv", index=False)
+
+df_baseline = pd.concat([
+    df_baseline,
+    pd.DataFrame([compute_global_metrics(baseline)])
+])
+
+df_extension = pd.concat([
+    df_extension,
+    pd.DataFrame([compute_global_metrics(extension)])
+])
 
 # comparison table (delta)
 df_cmp = df_extension.copy()
