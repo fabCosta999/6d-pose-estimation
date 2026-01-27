@@ -19,7 +19,7 @@ def add_metric(
     pts_pred = (R_pred @ model_points.T).T + t_pred
     pts_gt   = (R_gt   @ model_points.T).T + t_gt
 
-    dists = torch.cdist(pts_pred, pts_gt, p=2)
+    dists = torch.norm(pts_pred - pts_gt, dim=1)
 
     return dists.mean()
 
