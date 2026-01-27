@@ -13,6 +13,8 @@ from torchvision.utils import save_image
 from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
 from src.utils.pinhole import depth_to_points, weighted_translation
 
+def enhance_contrast(w, gamma=0.3):
+    return w ** gamma
 
 def prepare_weight_map(weight_map):
     if weight_map.dim() == 3:
@@ -21,7 +23,7 @@ def prepare_weight_map(weight_map):
     w = weight_map.clone()
     w = w / (w.max() + 1e-8)   
 
-    return w.unsqueeze(0)
+    return enhance_contrast(w.unsqueeze(0))
 
 
 results_dir = "/content/drive/MyDrive/machine_learning_project/eval_results_enc_dec"
