@@ -13,10 +13,6 @@ class SymmetryAwareGeodesicLoss(nn.Module):
         self.axial_weight = axial_weight
 
     def forward(self, q_pred, q_gt, labels):
-        """
-        q_pred, q_gt: (B, 4)
-        labels: (B,)
-        """
         q_pred = F.normalize(q_pred, dim=1, eps=1e-6)
         q_gt   = F.normalize(q_gt, dim=1, eps=1e-6)
         losses = []

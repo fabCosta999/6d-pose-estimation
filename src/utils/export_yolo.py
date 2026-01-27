@@ -26,7 +26,7 @@ def export_split(dataset, out_dir, split_name, indices):
 
 def create_data_yaml(dataset_dir):
     data_yaml = {
-        "path": "/content/6d-pose-estimation/data/dataset_yolo",
+        "path": ".",
         "train": "train/images",
         "val": "valid/images",
         "test": "test/images",

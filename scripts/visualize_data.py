@@ -1,3 +1,4 @@
+import argparse
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import torch
@@ -14,9 +15,9 @@ def yolo_collate_fn(batch):
     }
 
 
-def main():
+def main(args):
     print("[INFO] constructing dataset...")
-    dataset_scene = LinemodSceneDataset("data/Linemod_preprocessed", split="train")
+    dataset_scene = LinemodSceneDataset(args.data_root, split="train")
     dataset = YoloDataset(dataset_scene)
     print("[INFO] dataset ready")
 
@@ -41,9 +42,13 @@ def main():
         show_image_with_bbox(imgs[i], bboxes[i], ax=axes[i])
 
     plt.tight_layout()
-    plt.savefig("data/sample_visualization.png")
-    print("[INFO] Saved visualization to data/sample_visualization.png")
+    plt.savefig(f"{args.out_dir}/sample_visualization.png")
+    print(f"[INFO] Saved visualization to {args.out_dir}/sample_visualization.png")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
+    parser.add_argument("--out_dir", type=str, default="visualize_data")
+    args = parser.parse_args()
+    main(args)

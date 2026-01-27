@@ -1,10 +1,6 @@
 import torch
 
 def build_uv_grid(box, H, W, device):
-    """
-    box: [B, 4] -> (x, y, w, h) in pixel immagine
-    return: uv_grid [B, H, W, 2]
-    """
     B = box.shape[0]
 
     x, y, bw, bh = box[:, 0], box[:, 1], box[:, 2], box[:, 3]
@@ -19,7 +15,7 @@ def build_uv_grid(box, H, W, device):
     u = x[:, None, None] + (jj + 0.5) * bw[:, None, None] / W
     v = y[:, None, None] + (ii + 0.5) * bh[:, None, None] / H
 
-    return torch.stack([u, v], dim=-1)  # [B, H, W, 2]
+    return torch.stack([u, v], dim=-1)  
 
 
 def spatial_softmax(weight_map, mask=None, tau=0.05):
@@ -44,5 +40,5 @@ def make_coord_grid(H, W, device):
     ys = torch.linspace(-1, 1, H, device=device)
     xs = torch.linspace(-1, 1, W, device=device)
     yy, xx = torch.meshgrid(ys, xs, indexing="ij")
-    grid = torch.stack([xx, yy], dim=0)   # [2, H, W]
+    grid = torch.stack([xx, yy], dim=0)   
     return grid

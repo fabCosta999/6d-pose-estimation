@@ -33,7 +33,13 @@ def extract_dataset():
         zip_ref.extractall(DATA_DIR)
 
 
-def main():
+def main(args):
+    download_dataset(args.url)
+    extract_dataset()
+    print("[INFO] Dataset ready.")
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--url",
@@ -42,11 +48,4 @@ def main():
         help="Google Drive URL for the LINEMOD zip file",
     )
     args = parser.parse_args()
-
-    download_dataset(args.url)
-    extract_dataset()
-    print("[INFO] Dataset ready.")
-
-
-if __name__ == "__main__":
-    main()
+    main(args)

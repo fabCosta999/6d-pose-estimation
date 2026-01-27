@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import random
 from src.datasets.yolo import YoloDataset
@@ -5,11 +6,11 @@ from src.datasets.scene import LinemodSceneDataset
 from src.utils.export_yolo import export_split
 from src.utils.export_yolo import create_data_yaml
 
-def main():
+def main(args):
     out_dir = Path("data/dataset_yolo")
     print("[INFO] constructing datasets...")
-    train_scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="train") 
-    test_scene_ds  = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
+    train_scene_ds = LinemodSceneDataset(args.data_root, split="train") 
+    test_scene_ds  = LinemodSceneDataset(args.data_root, split="test")
     train_ds = YoloDataset(train_scene_ds)
     test_ds = YoloDataset(test_scene_ds)
     print("[INFO] datasets ready")
@@ -29,4 +30,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
+    args = parser.parse_args()
+    main(args)

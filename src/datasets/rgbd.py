@@ -30,7 +30,7 @@ class RGBDDataset(Dataset):
         self.depth_transform = transforms.Compose([
             transforms.Resize((img_size, img_size),
                               interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.ToTensor(),  # (1, H, W)
+            transforms.ToTensor(), 
         ])
 
     def __len__(self):
@@ -73,7 +73,6 @@ class RGBDDataset(Dataset):
             return self.__getitem__((idx + 1) % len(self))
         rgb_crop = self.rgb_transform(rgb_crop)
 
-        # DEPTH: ricarichiamo come PIL
         depth_path = scene["depth_path"]
         depth_img = Image.open(depth_path)
         depth_crop = self.crop_with_padding(depth_img, det["bbox"])

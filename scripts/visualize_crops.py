@@ -1,3 +1,4 @@
+import argparse
 import os
 import torch
 import torchvision.transforms as T
@@ -32,7 +33,7 @@ def draw_label(img, text):
     return img
 
 
-def save_one_image_per_class(dataset, out_dir="crops"):
+def save_one_image_per_class(dataset, out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
     saved = set()
@@ -59,10 +60,17 @@ def save_one_image_per_class(dataset, out_dir="crops"):
     print(f"Saved {len(saved)} images in '{out_dir}'")
 
 
-if __name__ == "__main__":
+def main(args):
     print("[INFO] constructing dataset...")
-    scene_ds = LinemodSceneDataset("data/Linemod_preprocessed", split="test")
+    scene_ds = LinemodSceneDataset(args.data_root, split="test")
     print("[INFO] dataset ready")
     gt = GTDetections(scene_ds)
     ds = ResNetDataset(scene_ds, gt)
-    save_one_image_per_class(ds)
+    save_one_image_per_class(ds, args.out_dir)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
+    parser.add_argument("--out_dir", type=str, default="visualize_crops")
+    args = parser.parse_args()
+    main(args)

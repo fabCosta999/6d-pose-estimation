@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 from pathlib import Path
 from PIL import Image
@@ -39,11 +40,11 @@ def compute_depth_mean_std(
     return mean, std
 
 
-def main():
+def main(args):
     CLASSES = [1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 
     mean_depth, std_depth = compute_depth_mean_std(
-        dataset_root="data/Linemod_preprocessed",
+        dataset_root=args.data_root,
         classes=CLASSES,
         depth_scale=1.0,   
         max_depth=2000.0      
@@ -54,5 +55,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
+
+    args = parser.parse_args()
+    main(args)
 

@@ -107,7 +107,6 @@ class GTDetections:
         self.scene_dataset = scene_dataset
 
     def __call__(self, idx):
-        # ritorna direttamente l'oggetto GT
         sample = self.scene_dataset[idx]
         return {
             "bbox": sample["bbox"],
