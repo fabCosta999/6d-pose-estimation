@@ -285,6 +285,7 @@ for r, scene in zip(results, ds):
             R_pred, t_pred,
             R_gt, t_gt,
         )
+    print("add:", err.item())
 
     log[obj_id]["adds"].append(err.item())
     errors.append(err.item())
