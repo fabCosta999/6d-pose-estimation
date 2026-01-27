@@ -275,9 +275,13 @@ print(f"ADD-S median: {errors.median():.2f} mm")
 out_dir = "/content/drive/MyDrive/machine_learning_project/extension_results"
 os.makedirs(out_dir, exist_ok=True)
 csv_path = os.path.join(out_dir, "linemod_eval_extension.csv")
+adds_txt_path = os.path.join(out_dir, "linemod_adds.txt")
 
-with open(csv_path, "w", newline="") as f:
-    writer = csv.writer(f)
+with open(csv_path, "w", newline="") as f_csv, \
+     open(adds_txt_path, "w") as f_txt:
+
+    writer = csv.writer(f_csv)
+
     writer.writerow([
         "obj_id",
         "num_samples",
@@ -291,6 +295,8 @@ with open(csv_path, "w", newline="") as f:
 
     for obj_id, d in sorted(log.items()):
         adds = np.array(d["adds"])
+
+        # ---- CSV summary ----
         writer.writerow([
             obj_id,
             d["total"],
@@ -301,3 +307,7 @@ with open(csv_path, "w", newline="") as f:
             d["bbox_invalid"],
             d["depth_missing"],
         ])
+
+        # ---- TXT: all errors ----
+        for e in adds:
+            f_txt.write(f"{obj_id} {e:.6f}\n")
