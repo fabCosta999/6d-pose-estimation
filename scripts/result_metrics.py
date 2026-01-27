@@ -118,12 +118,6 @@ def compute_metrics(errors):
 df_baseline = compute_metrics(baseline)
 df_extension = compute_metrics(extension)
 
-# =======================
-# save tables
-# =======================
-df_baseline.to_csv(f"{OUT_DIR}/metrics_baseline.csv", index=False)
-df_extension.to_csv(f"{OUT_DIR}/metrics_extension.csv", index=False)
-
 df_baseline = pd.concat([
     df_baseline,
     pd.DataFrame([compute_global_metrics(baseline)])
@@ -133,6 +127,13 @@ df_extension = pd.concat([
     df_extension,
     pd.DataFrame([compute_global_metrics(extension)])
 ])
+
+# =======================
+# save tables
+# =======================
+df_baseline.to_csv(f"{OUT_DIR}/metrics_baseline.csv", index=False)
+df_extension.to_csv(f"{OUT_DIR}/metrics_extension.csv", index=False)
+
 
 # comparison table (delta)
 df_cmp = df_extension.copy()
