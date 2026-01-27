@@ -48,8 +48,8 @@ with open(MODELS_INFO) as f:
 
 diameters = {int(k): v["diameter"] for k, v in models_info.items()}
 
-ABS_THRESHOLDS = [2, 5, 10]     # mm
-REL_THRESHOLDS = [0.05, 0.1]    # diameter ratio
+ABS_THRESHOLDS = [10, 20]     # mm
+REL_THRESHOLDS = [0.1, 0.2]    # diameter ratio
 
 # =======================
 # metrics per method
