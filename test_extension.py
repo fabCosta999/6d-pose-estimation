@@ -248,7 +248,9 @@ for r, scene in zip(results, ds):
     if LINEMOD_SYMMETRIES.get(obj_class, SymmetryType.NONE) == SymmetryType.DISCRETE:
         errs = []
         for q_sym in SYMMETRIC_QUATS[obj_class]:
-            R_rel = R_pred @ R_gt.T
+            q_gt_sym = quat_mul(q_gt, q_sym.to(device))
+            R_gt_sym = quaternion_to_rotation_matrix(q_gt_sym)
+            R_rel = R_pred @ R_gt_sym.T
             trace = torch.trace(R_rel)
             rot_err = torch.acos(torch.clamp((trace - 1) / 2, -1, 1))
             errs.append(rot_err)
@@ -257,6 +259,7 @@ for r, scene in zip(results, ds):
         print("rot err (deg) =", err.item() * 180 / torch.pi)
 
     else:
+        R_gt = quaternion_to_rotation_matrix(q_gt)
         R_rel = R_pred @ R_gt.T
         trace = torch.trace(R_rel)
         rot_err = torch.acos(torch.clamp((trace - 1) / 2, -1, 1))
