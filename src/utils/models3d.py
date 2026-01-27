@@ -16,11 +16,9 @@ def add_metric(
     R_pred, t_pred, # (3,3), (3,)
     R_gt,   t_gt,   # (3,3), (3,)
 ):
-    # Transform points
     pts_pred = (R_pred @ model_points.T).T + t_pred
     pts_gt   = (R_gt   @ model_points.T).T + t_gt
 
-    # Pairwise distances (N,N)
     dists = torch.cdist(pts_pred, pts_gt, p=2)
 
     return dists.mean()

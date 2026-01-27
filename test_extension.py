@@ -242,6 +242,26 @@ for r, scene in zip(results, ds):
     # =========================================================
     pts = models_3d[obj_id]
 
+    trans_err = torch.norm(t_pred - t_gt)
+    print("||t_pred - t_gt|| =", trans_err.item(), "mm")
+
+    if LINEMOD_SYMMETRIES.get(obj_class, SymmetryType.NONE) == SymmetryType.DISCRETE:
+        errs = []
+        for q_sym in SYMMETRIC_QUATS[obj_class]:
+            R_rel = R_pred @ R_gt.T
+            trace = torch.trace(R_rel)
+            rot_err = torch.acos(torch.clamp((trace - 1) / 2, -1, 1))
+            errs.append(rot_err)
+
+        err = torch.stack(errs).min()
+        print("rot err (deg) =", err.item() * 180 / torch.pi)
+
+    else:
+        R_rel = R_pred @ R_gt.T
+        trace = torch.trace(R_rel)
+        rot_err = torch.acos(torch.clamp((trace - 1) / 2, -1, 1))
+        print("rot err (deg) =", rot_err.item() * 180 / torch.pi)
+
     if LINEMOD_SYMMETRIES.get(obj_class, SymmetryType.NONE) == SymmetryType.DISCRETE:
         errs = []
         for q_sym in SYMMETRIC_QUATS[obj_class]:

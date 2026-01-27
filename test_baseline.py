@@ -177,11 +177,11 @@ for r, scene in zip(results, ds):
 
     with torch.no_grad():
         q_pred = rot_net(rgb)[0]
+    R_pred = quaternion_to_rotation_matrix(q_pred)
 
     # ---------------------------
     # ADD-S
     # ---------------------------
-    R_pred = quaternion_to_rotation_matrix(q_pred)
     pts = models_3d[obj_id]
 
     if LINEMOD_SYMMETRIES.get(obj_class, SymmetryType.NONE) == SymmetryType.DISCRETE:
