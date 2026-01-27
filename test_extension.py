@@ -274,8 +274,8 @@ print(f"ADD-S median: {errors.median():.2f} mm")
 
 out_dir = "/content/drive/MyDrive/machine_learning_project/extension_results"
 os.makedirs(out_dir, exist_ok=True)
-csv_path = os.path.join(out_dir, "linemod_eval_extension.csv")
-adds_txt_path = os.path.join(out_dir, "linemod_adds.txt")
+csv_path = os.path.join(out_dir, "eval_extension.csv")
+adds_txt_path = os.path.join(out_dir, "all_adds_extension.txt")
 
 with open(csv_path, "w", newline="") as f_csv, \
      open(adds_txt_path, "w") as f_txt:
