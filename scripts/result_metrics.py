@@ -10,7 +10,7 @@ from collections import defaultdict
 # =======================
 BASELINE_FILE = "/content/drive/MyDrive/machine_learning_project/baseline_results/all_adds_baseline.txt"
 EXTENSION_FILE = "/content/drive/MyDrive/machine_learning_project/extension_results/all_adds_extension.txt"
-MODELS_INFO = "/content/6d-pose-estimation/data/LinemodPreprocessed/models/models_info.yml"
+MODELS_INFO = "/content/6d-pose-estimation/data/Linemod_preprocessed/models/models_info.yml"
 
 OUT_DIR = "/content/drive/MyDrive/machine_learning_project/results"
 os.makedirs(OUT_DIR, exist_ok=True)
