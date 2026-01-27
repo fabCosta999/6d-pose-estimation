@@ -22,9 +22,9 @@ def main(args):
     batch_size = args.batch_size
     num_epochs = args.epochs
     lr = args.lr
-    log_dir = args.log_dir
-    os.makedirs(log_dir, exist_ok=True)
-    csv_path = os.path.join(log_dir, "training_log.csv")
+    out_dir = args.out_dir
+    os.makedirs(out_dir, exist_ok=True)
+    csv_path = os.path.join(out_dir, "training_log.csv")
     with open(csv_path, mode="w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -35,7 +35,7 @@ def main(args):
             "val_error",
             "lr"
         ])
-    img_log_dir = os.path.join(log_dir, "sample_inputs")
+    img_log_dir = os.path.join(out_dir, "sample_inputs")
     os.makedirs(img_log_dir, exist_ok=True)
     print("[INFO] constructing datasets...")
     scene_ds = LinemodSceneDataset(
@@ -226,9 +226,9 @@ def main(args):
 
         if valid_epoch_loss < best_loss:
             best_loss = valid_epoch_loss
-            torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning_project/enc_dec_best.pth")
+            torch.save(model.state_dict(), f"{out_dir}/enc_dec_best.pth")
             print("Saved new best model")
-        torch.save(model.state_dict(), "/content/drive/MyDrive/machine_learning_project/enc_dec_last.pth")
+        torch.save(model.state_dict(), f"{out_dir}/enc_dec_last.pth")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--log_dir", type=str, default="train_encoder_decoder")
+    parser.add_argument("--out_dir", type=str, default="train_encoder_decoder")
 
     args = parser.parse_args()
     main(args)

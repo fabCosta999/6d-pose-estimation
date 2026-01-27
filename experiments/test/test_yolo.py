@@ -1,12 +1,23 @@
+import argparse
 from ultralytics import YOLO
 
-model = YOLO(
-    "/content/drive/MyDrive/machine_learning_project/yolo11s/detect/train/weights/best.pt"
-)
+def main():
+    model = YOLO(args.model)
 
-metrics = model.val(
-    data="/content/6d-pose-estimation/data/dataset_yolo/data.yaml",
-    split="test",
-    imgsz=640,
-    batch=16
-)
+    metrics = model.val(
+        data=args.data,
+        split="test",
+        imgsz=640,
+        batch=16,
+        project=args.out_dir,
+        name="val",
+    )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--data", type=str, default="data/dataset_yolo/data.yaml")
+    parser.add_argument("--out_dir", type=str, default="test_yolo")
+    args = parser.parse_args()
+    main(args)

@@ -12,7 +12,7 @@ def main(args):
         freeze=10,
         workers=4,
         project=args.out_dir,
-        name="yolo"
+        name="train"
     )
     print(results)
     print(results.save_dir)
