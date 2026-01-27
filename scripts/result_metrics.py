@@ -8,8 +8,8 @@ from collections import defaultdict
 # =======================
 # paths
 # =======================
-BASELINE_FILE = "/content/drive/MyDrive/machine_learning_project/baseline_results/all_adds.txt"
-EXTENSION_FILE = "/content/drive/MyDrive/machine_learning_project/extension_results/all_adds.txt"
+BASELINE_FILE = "/content/drive/MyDrive/machine_learning_project/baseline_results/all_adds_baseline.txt"
+EXTENSION_FILE = "/content/drive/MyDrive/machine_learning_project/extension_results/all_adds_extension.txt"
 MODELS_INFO = "/content/6d-pose-estimation/data/LinemodPreprocessed/models/models_info.yml"
 
 OUT_DIR = "/content/drive/MyDrive/machine_learning_project/results"
