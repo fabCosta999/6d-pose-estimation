@@ -13,7 +13,7 @@ from torchvision.utils import save_image
 from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
 from src.utils.pinhole import depth_to_points, weighted_translation
 
-def enhance_contrast(w, gamma=0.3):
+def enhance_contrast(w, gamma=3):
     return w ** gamma
 
 def prepare_weight_map(weight_map):
