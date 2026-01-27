@@ -13,10 +13,12 @@ from torchvision.utils import save_image
 from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
 from src.utils.pinhole import depth_to_points, weighted_translation
 
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
 def enhance_contrast(x, t=0.7, k=12):
-    sig = torch.sigmoid
-    num = sig(k * (x - t)) - sig(-k * t)
-    den = sig(k * (1 - t)) - sig(-k * t)
+    num = sigmoid(k * (x - t)) - sigmoid(-k * t)
+    den = sigmoid(k * (1 - t)) - sigmoid(-k * t)
     return num / den
 
 def prepare_weight_map(weight_map):
