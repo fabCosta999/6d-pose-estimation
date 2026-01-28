@@ -24,9 +24,9 @@ class DepthNet(nn.Module):
         return x.view(x.size(0), -1)
     
 
-class RGBDFusionNet(nn.Module):
+class DepthRotationNet(nn.Module):
     def __init__(self, pretrained=True):
-        super(RGBDFusionNet, self).__init__()
+        super(DepthRotationNet, self).__init__()
  
         try:
             weights = models.ResNet50_Weights.DEFAULT if pretrained else None

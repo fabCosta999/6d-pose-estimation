@@ -4,17 +4,15 @@ from PIL import Image
 from ultralytics import YOLO
 import numpy as np
 from src.datasets.scene import LinemodSceneDataset
-from src.models.rgbd_posenet import RGBDFusionNet
-from src.models.rgbd_encoder_decoder import EncoderDecoderWeightsNet
+from src.models.rgbd_posenet import DepthRotationNet
+from src.models.rgbd_translation import DepthTranslationNet
 import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
 from src.utils.models3d import load_linemod_models, add_metric
 from src.utils.quaternions import quaternion_to_rotation_matrix, quat_mul
-from src.utils.grid import make_coord_grid, spatial_softmax, build_uv_grid
-from src.utils.pinhole import depth_to_points, weighted_translation
+from src.utils.grid import make_coord_grid
+from src.utils.save_results import show_pipeline_results
 from collections import defaultdict
-import os
-import csv
 
 resnet_tf = T.Compose([
     T.Resize((224, 224)),
@@ -24,7 +22,6 @@ resnet_tf = T.Compose([
         std =[0.229, 0.224, 0.225],
     ),
 ])
-
 
 def crop_rgb(img_pil, bbox):
     x, y, w, h = bbox
@@ -44,6 +41,8 @@ def bbox_invalid(bbox):
 
 
 def main(args):
+    results_dir = args.out_dir
+    
     log = defaultdict(lambda: {
         "adds": [],
         "bbox_missing": 0,
@@ -53,24 +52,7 @@ def main(args):
         "total": 0,
     })
 
-
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # YOLO
-    yolo = YOLO(args.yolo_model)
-
-    # RGBD (Rotation)
-    rot_net = RGBDFusionNet(pretrained=False).to(device)
-    rot_net.load_state_dict(torch.load(args.rgbd_pose_model, map_location=device))
-    rot_net.eval()
-
-    # EncDec (translation)
-    enc_dec_net = EncoderDecoderWeightsNet().to(device)
-    enc_dec_net.load_state_dict(torch.load(args.enc_dec_model, map_location=device))
-    enc_dec_net.eval()
-
-
 
     ds = LinemodSceneDataset(args.data_root, split="test")
     models_3d = load_linemod_models(
@@ -78,6 +60,21 @@ def main(args):
         device=device
     )
 
+    depth_mean = 990.7
+    depth_std  = 311.8
+
+    # YOLO
+    yolo = YOLO(args.yolo_model)
+
+    # RGBD (Rotation)
+    rot_net = DepthRotationNet(pretrained=False).to(device)
+    rot_net.load_state_dict(torch.load(args.rgbd_pose_model, map_location=device))
+    rot_net.eval()
+
+    # EncDec (translation)
+    enc_dec_net = DepthTranslationNet(depth_mean, depth_std).to(device)
+    enc_dec_net.end_dec.load_state_dict(torch.load(args.enc_dec_model, map_location=device))
+    enc_dec_net.eval()
 
     errors = []
 
@@ -90,25 +87,20 @@ def main(args):
         save=False,
     )
 
-
-    depth_mean = 990.7
-    depth_std  = 311.8
-
     for r, scene in zip(results, ds):
 
-        # ---------------------------
+        # =========================================================
         # GT
-        # ---------------------------
+        # =========================================================
         q_gt = scene["rotation"].to(device)
         t_gt = scene["translation"].to(device)
         obj_class = scene["label"]
         obj_id = LinemodSceneDataset.CLASSES[obj_class]
         log[obj_id]["total"] += 1
 
-        # ---------------------------
+        # =========================================================
         # YOLO bbox
-        # ---------------------------
-
+        # =========================================================
         boxes = r.boxes
 
         if boxes is None or len(boxes) == 0:
@@ -146,20 +138,16 @@ def main(args):
             log[obj_id]["bbox_invalid"] += 1
             continue
 
-
-
-
-        # ---------------------------
+        # =========================================================
         # LOAD RGB + DEPTH
-        # ---------------------------
+        # =========================================================
         img = Image.open(scene["img_path"]).convert("RGB")
         depth_img = Image.open(scene["depth_path"])
 
-        
-
-        # ---------------------------
+    
+        # =========================================================
         # CROP
-        # ---------------------------
+        # =========================================================
         crop_rgb_img = crop_rgb(img, bbox)
         if crop_rgb_img is None:
             log[obj_id]["bbox_invalid"] += 1
@@ -213,26 +201,14 @@ def main(args):
         depth_64 = (depth_64 - depth_mean) / depth_std
 
         coord = make_coord_grid(64, 64, device).unsqueeze(0)
-        enc_in = torch.cat([rgb_64, depth_64, coord], dim=1)
+
+        box = torch.tensor(bbox, device=device).unsqueeze(0)
+        
+        K = scene["cam_intrinsics"].to(device)
 
         with torch.no_grad():
-            logits = enc_dec_net(enc_in)
-
-        un_depth = depth_64 * depth_std + depth_mean
-        valid_mask = (un_depth > 10).float()
-
-        if valid_mask.sum() == 0:
-            log[obj_id]["depth_missing"] += 1
-            continue
-
-        weights = spatial_softmax(logits, valid_mask)
-
-        K = scene["cam_intrinsics"].to(device)
-        box = torch.tensor(bbox, device=device).unsqueeze(0)
-        uv_grid = build_uv_grid(box, 64, 64, device)
-
-        points_3d = depth_to_points(un_depth, K, uv_grid)
-        t_pred = weighted_translation(points_3d, weights)[0]
+            _, t_pred = enc_dec_net(rgb_64, depth_64, coord, box, K)
+            t_pred = t_pred[0]
 
         # =========================================================
         # ADD-S 
@@ -263,51 +239,9 @@ def main(args):
         log[obj_id]["adds"].append(err.item())
         errors.append(err.item())
 
-
-
+    
     errors = torch.tensor(errors)
-    print(f"ADD-S mean: {errors.mean():.2f} mm")
-    print(f"ADD-S median: {errors.median():.2f} mm")
-
-    out_dir = args.out_dir
-    os.makedirs(out_dir, exist_ok=True)
-    csv_path = os.path.join(out_dir, "eval_extension.csv")
-    adds_txt_path = os.path.join(out_dir, "all_adds_extension.txt")
-
-    with open(csv_path, "w", newline="") as f_csv, \
-        open(adds_txt_path, "w") as f_txt:
-
-        writer = csv.writer(f_csv)
-
-        writer.writerow([
-            "obj_id",
-            "num_samples",
-            "adds_mean_mm",
-            "adds_median_mm",
-            "bbox_missing",
-            "false_positive",
-            "bbox_invalid",
-            "depth_missing",
-        ])
-
-        for obj_id, d in sorted(log.items()):
-            adds = np.array(d["adds"])
-
-            # ---- CSV summary ----
-            writer.writerow([
-                obj_id,
-                d["total"],
-                adds.mean() if len(adds) > 0 else np.nan,
-                np.median(adds) if len(adds) > 0 else np.nan,
-                d["bbox_missing"],
-                d["false_positive"],
-                d["bbox_invalid"],
-                d["depth_missing"],
-            ])
-
-            # ---- TXT: all errors ----
-            for e in adds:
-                f_txt.write(f"{obj_id} {e:.6f}\n")
+    show_pipeline_results(errors, results_dir, log)
 
 
 if __name__ == "__main__":

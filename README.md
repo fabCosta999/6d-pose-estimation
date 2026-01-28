@@ -68,7 +68,7 @@ This project uses the **LineMOD** dataset as its benchmark.
 A helper script is provided to download and prepare the dataset:
 
 ```bash
-python scripts/download_data.py
+python -m scripts.download_data
 ```
 
 The dataset is downloaded as a compressed archive. After the download completes:
@@ -91,7 +91,7 @@ Most training and evaluation scripts assume this default path. If you choose a d
 YOLO-based experiments require a different dataset structure. To generate it from LineMOD, use:
 
 ```bash
-python scripts/export_dataset.py
+python -m scripts.export_dataset
 ```
 
 This script creates a YOLO-compatible dataset at:
@@ -103,8 +103,8 @@ data/dataset_yolo/
 If you move this directory, update the corresponding paths in the YOLO-related scripts using the `--data` or `--yolo_dataset` arguments:
 - `train_yolo.py`
 - `test_yolo.py`
-- `test_baseline.py`
-- `test_extension.py`
+- `test_pipeline_baseline.py`
+- `test_pipeline_extension.py`
 
 ## Training
 All training scripts are located in `experiments/train/` and are meant to be executed from the repository root.
@@ -118,7 +118,7 @@ Each training script saves:
 Train the object detector on the YOLO-formatted LineMOD dataset:
 
 ```bash
-python experiments/train/train_yolo.py \
+python -m experiments.train.train_yolo \
     --model yolo11s.pt \
     --data data/dataset_yolo/data.yaml \
     --epochs 10 \
@@ -131,7 +131,7 @@ python experiments/train/train_yolo.py \
 Train the rotation network using RGB crops:
 
 ```bash
-python experiments/train/train_resnet.py \
+python -m experiments.train.train_resnet \
     --data_root data/Linemod_preprocessed \
     --epochs 50 \
     --batch_size 64 \
@@ -144,7 +144,7 @@ python experiments/train/train_resnet.py \
 Train the RGB-D fusion network for rotation estimation:
 
 ```bash
-python experiments/train/train_rgbd.py \
+python -m experiments.train.train_rotation_extension \
     --data_root data/Linemod_preprocessed \
     --epochs 50 \
     --batch_size 64 \
@@ -157,7 +157,7 @@ python experiments/train/train_rgbd.py \
 Train the encoder–decoder network for translation estimation:
 
 ```bash
-python experiments/train/train_encoder_decoder.py \
+python -m experiments.train.train_encoder_decoder \
     --data_root data/Linemod_preprocessed \
     --epochs 40 \
     --batch_size 64 \
@@ -179,7 +179,7 @@ Each evaluation script saves:
 
 ### Baseline Pipeline (YOLO + RGB Rotation + Pinhole Translation)
 ```bash
-python experiments/test/test_baseline.py \
+python -m experiments.test.test_pipeline_baseline \
     --yolo_model path/to/yolo_weights.pt \
     --resnet_model path/to/pose_resnet_weights.pth \
     --data_root data/Linemod_preprocessed \
@@ -189,7 +189,7 @@ python experiments/test/test_baseline.py \
 
 ### Full Extension Pipeline (YOLO + RGB-D Rotation + Encoder–Decoder Translation)
 ```bash
-python experiments/test/test_extension.py \
+python -m experiments.test.test_pipeline_extension \
     --yolo_model path/to/yolo_weights.pt \
     --rgbd_pose_model path/to/rgbd_pose_weights.pth \
     --enc_dec_model path/to/enc_dec_weights.pth \
@@ -200,7 +200,7 @@ python experiments/test/test_extension.py \
 
 ### YOLO Detector Evaluation
 ```bash
-python experiments/test/test_yolo.py \
+python -m experiments.test.test_yolo \
     --model path/to/yolo_weights.pt \
     --data data/dataset_yolo/data.yaml
 ```
@@ -208,7 +208,7 @@ python experiments/test/test_yolo.py \
 ### Rotation-only evaluation (RGB – ResNet)
 
 ```bash
-python experiments/test/test_resnet.py \
+python -m experiments.test.test_resnet \
     --resnet_model path/to/pose_resnet_weights.pth \
     --data_root data/Linemod_preprocessed \
     --out_dir test_resnet
@@ -217,7 +217,7 @@ python experiments/test/test_resnet.py \
 
 ### Rotation Estimation (RGB-D Fusion)
 ```bash
-python experiments/test/test_rgbd.py \
+python -m experiments.test.test_rotation_extension \
     --rgbd_pose_model path/to/rgbd_pose_weights.pth \
     --data_root data/Linemod_preprocessed \
     --out_dir test_rgbd
@@ -226,7 +226,7 @@ python experiments/test/test_rgbd.py \
 ### Translation-only evaluation (Encoder–Decoder):
 
 ```bash
-python experiments/test/test_enc_dec.py \
+python -m experiments.test.test_translation_extension \
     --enc_dec_model path/to/enc_dec_weights.pth \
     --data_root data/Linemod_preprocessed \
     --out_dir test_enc_dec

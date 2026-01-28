@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.models.resnet import PoseResNet
+from src.models.resnet import RotationNet
 from src.models.losses.geodesic_loss import  SymmetryAwareGeodesicLoss
 from src.utils.quaternions import rotation_error_deg_symmetry_aware
 from src.datasets.scene import LinemodSceneDataset, GTDetections
@@ -72,7 +72,7 @@ def main(args):
         pin_memory=True,
     )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = PoseResNet(pretrained=True).to(device)
+    model = RotationNet(pretrained=True).to(device)
     criterion = SymmetryAwareGeodesicLoss(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = optim.lr_scheduler.StepLR(

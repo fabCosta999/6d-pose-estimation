@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from src.utils.grid import spatial_softmax, build_uv_grid
+from src.utils.pinhole import weighted_translation, depth_to_points
 
 class EncoderDecoderWeightsNet(nn.Module):
     def __init__(self):
@@ -38,3 +39,42 @@ class EncoderDecoderWeightsNet(nn.Module):
         u3 = F.relu(self.bn7(self.up3(u2)))     # 64x64x16
         w = self.out_conv(u3)                   # 64x64x1
         return w
+    
+class DepthTranslationNet(nn.Module):
+    def __init__(self, depth_mean, depth_std):
+        super().__init__()
+        self.end_dec = EncoderDecoderWeightsNet()
+        
+        self.register_buffer('depth_mean', torch.tensor(depth_mean))
+        self.register_buffer('depth_std', torch.tensor(depth_std))
+
+    def forward(self, rgb, depth, coord, box, K):
+        # 1. depth denormalization
+        un_normalized_depth = depth * self.depth_std + self.depth_mean
+
+        # 2. encoder-decoder input
+        x = torch.cat([rgb, depth, coord], dim=1)
+
+        # 3. encoder-decoder output
+        logits = self.end_dec(x)  
+
+        # 4. pixel < 10 mm are considered backgroud
+        valid_mask = (un_normalized_depth > 10.0).float()
+        
+        # 5 weights computation
+        weights = spatial_softmax(logits, valid_mask)
+
+        # 4. Ricostruzione 3D (Inverse Pinhole)
+        B, _, H, W = depth.shape
+        device = depth.device
+        
+        # 5. u-v grid creation based on bounding box crop
+        uv_grid = build_uv_grid(box, H, W, device)
+
+        # 6. 2D -> 3D points projection
+        points_3d = depth_to_points(un_normalized_depth, K, uv_grid)
+
+        # 7. translation regression
+        t_pred = weighted_translation(points_3d, weights)
+
+        return weights, t_pred

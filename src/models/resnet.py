@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class PoseResNet(nn.Module):
+class RotationNet(nn.Module):
     def __init__(self, pretrained=True):
-        super(PoseResNet, self).__init__()
+        super(RotationNet, self).__init__()
         try:
             weights = models.ResNet50_Weights.DEFAULT if pretrained else None
             self.model = models.resnet50(weights=weights)

@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.models.rgbd_encoder_decoder import EncoderDecoderWeightsNet
+from src.models.rgb_translation import EncoderDecoderWeightsNet
 from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.rgbd import RGBDDataset
 import random 

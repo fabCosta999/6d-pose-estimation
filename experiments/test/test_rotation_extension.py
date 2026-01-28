@@ -2,18 +2,14 @@ import argparse
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from src.datasets.resnet import ResNetDataset
+from src.datasets.rgbd import RGBDDataset
 from src.datasets.scene import LinemodSceneDataset, GTDetections
-from src.models.resnet import RotationNet
+from src.models.rgbd_rotation import DepthRotationNet
 from src.utils.save_results import show_rotation_results
 from collections import defaultdict
-import numpy as np
 from tqdm import tqdm
 from src.utils.quaternions import rotation_error_deg_symmetry_aware
 import os
-import csv
-from torchvision.utils import save_image
-
 
 def main(args):
     results_dir = args.out_dir
@@ -23,7 +19,7 @@ def main(args):
 
     scene_ds = LinemodSceneDataset(args.data_root, split="test")
     dp = GTDetections(scene_ds)
-    test_ds = ResNetDataset(
+    test_ds = RGBDDataset(
         scene_dataset=scene_ds,
         detection_provider=dp,
         img_size=224,
@@ -39,9 +35,9 @@ def main(args):
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = RotationNet(pretrained=False)
+    model = DepthRotationNet(pretrained=False)
     model = model.to(device)
-    weight_path = args.resnet_model
+    weight_path = args.rgbd_pose_model
 
     try:
         model.load_state_dict(torch.load(weight_path, map_location=device))
@@ -61,13 +57,13 @@ def main(args):
         for batch in pbar:
             rgb = batch["rgb"].to(device)
             q_gt = batch["rotation"].to(device)
+            depth = batch["depth"].to(device)
             labels = batch["label"]  # CPU ok
 
-            q_pred = model(rgb)
+            q_pred = model(rgb, depth)
 
             errors = rotation_error_deg_symmetry_aware(q_pred, q_gt, labels, device)
 
-            
             for i in range(len(errors)):
                 err = float(errors[i].cpu().item())
                 cls = int(labels[i].item())
@@ -93,8 +89,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--resnet_model", type=str, required=True)
+    parser.add_argument("--rgbd_pose_model", type=str, required=True)
     parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
-    parser.add_argument("--out_dir", type=str, default="test_resnet")
+    parser.add_argument("--out_dir", type=str, default="test_rgbd")
     args = parser.parse_args()
     main(args)
