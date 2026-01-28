@@ -1,7 +1,7 @@
 import argparse
 from ultralytics import YOLO
 
-def main():
+def main(args):
     model = YOLO(args.model)
 
     metrics = model.val(
