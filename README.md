@@ -40,7 +40,7 @@ The project is implemented in Python and relies on PyTorch.
 
 1. **Clone the repository**
 ```bash
-git clone <repository-url>
+git clone https://github.com/fabCosta999/6d-pose-estimation.git
 cd 6d-pose-estimation
 ```
 
@@ -215,7 +215,7 @@ python -m experiments.test.test_resnet \
 ```
 
 
-### Rotation Estimation (RGB-D Fusion)
+### Rotation-only evaluation (RGB-D Fusion)
 ```bash
 python -m experiments.test.test_rotation_extension \
     --rot_ext_weights path/to/rot_ext_weights.pth \
