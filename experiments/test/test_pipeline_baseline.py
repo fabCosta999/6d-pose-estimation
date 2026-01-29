@@ -54,11 +54,11 @@ def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # YOLO
-    yolo = YOLO(args.yolo_model)
+    yolo = YOLO(args.yolo_weights)
 
     # ResNet 
     rot_net = RotationNet(pretrained=False).to(device)
-    rot_net.load_state_dict(torch.load(args.resnet_model, map_location=device))
+    rot_net.load_state_dict(torch.load(args.resnet_weights, map_location=device))
     rot_net.eval()
 
     # Dataset
@@ -215,11 +215,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--yolo_model", type=str, required=True)
-    parser.add_argument("--resnet_model", type=str, required=True)
+    parser.add_argument("--yolo_weights", type=str, required=True)
+    parser.add_argument("--resnet_weights", type=str, required=True)
     parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
     parser.add_argument("--yolo_dataset", type=str, default="data/dataset_yolo")
-    parser.add_argument("--out_dir", type=str, default="test_baseline")
+    parser.add_argument("--out_dir", type=str, default="test_pipeline_baseline")
     args = parser.parse_args()
     main(args)
 

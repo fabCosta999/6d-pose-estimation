@@ -182,9 +182,9 @@ def main(args):
 
         if valid_epoch_loss < best_loss:
             best_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"{out_dir}/pose_resnet_best.pth")
+            torch.save(model.state_dict(), f"{out_dir}/resnet_best.pth")
             print("Saved new best model")
-        torch.save(model.state_dict(), f"{out_dir}/pose_resnet_last.pth")
+        torch.save(model.state_dict(), f"{out_dir}/resnet_last.pth")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import argparse
 from ultralytics import YOLO
 
 def main(args):
-    model = YOLO(args.model)
+    model = YOLO(args.yolo_weights)
 
     results = model.train(
         data=args.data,
@@ -21,7 +21,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="yolo11s.pt")
+    parser.add_argument("--yolo_weights", type=str, default="yolo11s.pt")
     parser.add_argument("--data", type=str, default="data/dataset_yolo/data.yaml")
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--epochs", type=int, default=10)

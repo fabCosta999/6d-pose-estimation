@@ -43,7 +43,7 @@ class EncoderDecoderWeightsNet(nn.Module):
 class DepthTranslationNet(nn.Module):
     def __init__(self, depth_mean, depth_std):
         super().__init__()
-        self.end_dec = EncoderDecoderWeightsNet()
+        self.enc_dec = EncoderDecoderWeightsNet()
         
         self.register_buffer('depth_mean', torch.tensor(depth_mean))
         self.register_buffer('depth_std', torch.tensor(depth_std))
@@ -56,7 +56,7 @@ class DepthTranslationNet(nn.Module):
         x = torch.cat([rgb, depth, coord], dim=1)
 
         # 3. encoder-decoder output
-        logits = self.end_dec(x)  
+        logits = self.enc_dec(x)  
 
         # 4. pixel < 10 mm are considered backgroud
         valid_mask = (un_normalized_depth > 10.0).float()

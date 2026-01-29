@@ -4,8 +4,8 @@ from PIL import Image
 from ultralytics import YOLO
 import numpy as np
 from src.datasets.scene import LinemodSceneDataset
-from src.models.rgbd_posenet import DepthRotationNet
-from src.models.rgbd_translation import DepthTranslationNet
+from src.models.rotation_extension import DepthRotationNet
+from src.models.translation_extension import DepthTranslationNet
 import torchvision.transforms as T
 from src.utils.linemod_symmetries import LINEMOD_SYMMETRIES, SYMMETRIC_QUATS, SymmetryType
 from src.utils.models3d import load_linemod_models, add_metric
@@ -64,17 +64,17 @@ def main(args):
     depth_std  = 311.8
 
     # YOLO
-    yolo = YOLO(args.yolo_model)
+    yolo = YOLO(args.yolo_weights)
 
     # RGBD (Rotation)
     rot_net = DepthRotationNet(pretrained=False).to(device)
-    rot_net.load_state_dict(torch.load(args.rgbd_pose_model, map_location=device))
+    rot_net.load_state_dict(torch.load(args.rot_ext_weights, map_location=device))
     rot_net.eval()
 
     # EncDec (translation)
-    enc_dec_net = DepthTranslationNet(depth_mean, depth_std).to(device)
-    enc_dec_net.end_dec.load_state_dict(torch.load(args.enc_dec_model, map_location=device))
-    enc_dec_net.eval()
+    translation_extension_net = DepthTranslationNet(depth_mean, depth_std).to(device)
+    translation_extension_net.enc_dec.load_state_dict(torch.load(args.trans_ext_weights, map_location=device))
+    translation_extension_net.eval()
 
     errors = []
 
@@ -199,15 +199,12 @@ def main(args):
         ])(crop_depth_img).unsqueeze(0).to(device)
 
         depth_64 = (depth_64 - depth_mean) / depth_std
-
         coord = make_coord_grid(64, 64, device).unsqueeze(0)
-
         box = torch.tensor(bbox, device=device).unsqueeze(0)
-        
         K = scene["cam_intrinsics"].to(device)
 
         with torch.no_grad():
-            _, t_pred = enc_dec_net(rgb_64, depth_64, coord, box, K)
+            _, t_pred = translation_extension_net(rgb_64, depth_64, coord, box, K)
             t_pred = t_pred[0]
 
         # =========================================================
@@ -246,11 +243,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--yolo_model", type=str, required=True)
-    parser.add_argument("--rgbd_pose_model", type=str, required=True)
-    parser.add_argument("--enc_dec_model", type=str, required=True)
+    parser.add_argument("--yolo_weights", type=str, required=True)
+    parser.add_argument("--rot_ext_weights", type=str, required=True)
+    parser.add_argument("--trans_ext_weights", type=str, required=True)
     parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
     parser.add_argument("--yolo_dataset", type=str, default="data/dataset_yolo")
-    parser.add_argument("--out_dir", type=str, default="test_extension")
+    parser.add_argument("--out_dir", type=str, default="test_pipeline_extension")
     args = parser.parse_args()
     main(args)

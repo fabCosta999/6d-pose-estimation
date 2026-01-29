@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.models.rgb_translation import EncoderDecoderWeightsNet
+from src.models.translation_extension import EncoderDecoderWeightsNet
 from src.datasets.scene import LinemodSceneDataset, GTDetections
 from src.datasets.rgbd import RGBDDataset
 import random 
@@ -226,9 +226,9 @@ def main(args):
 
         if valid_epoch_loss < best_loss:
             best_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"{out_dir}/enc_dec_best.pth")
+            torch.save(model.state_dict(), f"{out_dir}/trans_ext_best.pth")
             print("Saved new best model")
-        torch.save(model.state_dict(), f"{out_dir}/enc_dec_last.pth")
+        torch.save(model.state_dict(), f"{out_dir}/trans_ext_last.pth")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--out_dir", type=str, default="train_encoder_decoder")
+    parser.add_argument("--out_dir", type=str, default="train_translation_extension")
 
     args = parser.parse_args()
     main(args)

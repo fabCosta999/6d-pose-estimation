@@ -119,7 +119,7 @@ Train the object detector on the YOLO-formatted LineMOD dataset:
 
 ```bash
 python -m experiments.train.train_yolo \
-    --model yolo11s.pt \
+    --yolo_weights yolo11s.pt \
     --data data/dataset_yolo/data.yaml \
     --epochs 10 \
     --batch_size 16 \
@@ -149,7 +149,7 @@ python -m experiments.train.train_rotation_extension \
     --epochs 50 \
     --batch_size 64 \
     --lr 1e-4 \
-    --out_dir train_rgbd
+    --out_dir train_rotation_extension
 ```
 
 ### Translation Estimation (Encoder–Decoder)
@@ -157,12 +157,12 @@ python -m experiments.train.train_rotation_extension \
 Train the encoder–decoder network for translation estimation:
 
 ```bash
-python -m experiments.train.train_encoder_decoder \
+python -m experiments.train.train_translation_extension \
     --data_root data/Linemod_preprocessed \
     --epochs 40 \
     --batch_size 64 \
     --lr 1e-3 \
-    --out_dir train_encoder_decoder
+    --out_dir train_translation_extension
 ```
 
 
@@ -180,28 +180,28 @@ Each evaluation script saves:
 ### Baseline Pipeline (YOLO + RGB Rotation + Pinhole Translation)
 ```bash
 python -m experiments.test.test_pipeline_baseline \
-    --yolo_model path/to/yolo_weights.pt \
-    --resnet_model path/to/pose_resnet_weights.pth \
+    --yolo_weights path/to/yolo_weights.pt \
+    --resnet_weights path/to/resnet_weights.pth \
     --data_root data/Linemod_preprocessed \
     --yolo_dataset data/dataset_yolo \
-    --out_dir test_baseline
+    --out_dir test_pipeline_baseline
 ```
 
 ### Full Extension Pipeline (YOLO + RGB-D Rotation + Encoder–Decoder Translation)
 ```bash
 python -m experiments.test.test_pipeline_extension \
-    --yolo_model path/to/yolo_weights.pt \
-    --rgbd_pose_model path/to/rgbd_pose_weights.pth \
-    --enc_dec_model path/to/enc_dec_weights.pth \
+    --yolo_weights path/to/yolo_weights.pt \
+    --rot_ext_weights path/to/rot_ext_weights.pth \
+    --trans_ext_weights path/to/trans_ext_weights.pth \
     --data_root data/Linemod_preprocessed \
     --yolo_dataset data/dataset_yolo \
-    --out_dir test_extension
+    --out_dir test_pipeline_extension
 ```
 
 ### YOLO Detector Evaluation
 ```bash
 python -m experiments.test.test_yolo \
-    --model path/to/yolo_weights.pt \
+    --yolo_weights path/to/yolo_weights.pt \
     --data data/dataset_yolo/data.yaml
 ```
 
@@ -209,7 +209,7 @@ python -m experiments.test.test_yolo \
 
 ```bash
 python -m experiments.test.test_resnet \
-    --resnet_model path/to/pose_resnet_weights.pth \
+    --resnet_weights path/to/resnet_weights.pth \
     --data_root data/Linemod_preprocessed \
     --out_dir test_resnet
 ```
@@ -218,18 +218,18 @@ python -m experiments.test.test_resnet \
 ### Rotation Estimation (RGB-D Fusion)
 ```bash
 python -m experiments.test.test_rotation_extension \
-    --rgbd_pose_model path/to/rgbd_pose_weights.pth \
+    --rot_ext_weights path/to/rot_ext_weights.pth \
     --data_root data/Linemod_preprocessed \
-    --out_dir test_rgbd
+    --out_dir test_rotation_extension
 ```
 
 ### Translation-only evaluation (Encoder–Decoder):
 
 ```bash
 python -m experiments.test.test_translation_extension \
-    --enc_dec_model path/to/enc_dec_weights.pth \
+    --trans_ext_weights path/to/trans_ext_weights.pth \
     --data_root data/Linemod_preprocessed \
-    --out_dir test_enc_dec
+    --out_dir test_translation_extension
 ```
 
 

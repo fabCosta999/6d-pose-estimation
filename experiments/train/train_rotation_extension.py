@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch import optim
 from tqdm import tqdm
-from src.models.rgbd_rotation import DepthRotationNet
+from src.models.rotation_extension import DepthRotationNet
 from src.models.losses.geodesic_loss import SymmetryAwareGeodesicLoss
 from src.utils.quaternions import rotation_error_deg_symmetry_aware
 from src.datasets.scene import LinemodSceneDataset, GTDetections
@@ -184,9 +184,9 @@ def main(args):
 
         if valid_epoch_loss < best_loss:
             best_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"{out_dir}/pose_rgbd_best.pth")
+            torch.save(model.state_dict(), f"{out_dir}/rot_ext_best.pth")
             print("Saved new best model")
-        torch.save(model.state_dict(), f"{out_dir}/pose_rgbd_last.pth")
+        torch.save(model.state_dict(), f"{out_dir}/rot_ext_last.pth")
 
 
 

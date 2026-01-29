@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from src.datasets.rgbd import RGBDDataset
 from src.datasets.scene import LinemodSceneDataset, GTDetections
-from src.models.rgbd_translation import DepthTranslationNet
+from src.models.translation_extension import DepthTranslationNet
 from src.utils.save_results import show_translation_results
 from collections import defaultdict
 import numpy as np
@@ -55,14 +55,14 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = DepthTranslationNet(test_ds.depth_mean, test_ds.depth_std)
     model = model.to(device)
-    weight_path = args.enc_dec_model
+    weight_path = args.trans_ext_weights
 
     try:
-        model.end_dec.load_state_dict(torch.load(weight_path, map_location=device))
+        model.enc_dec.load_state_dict(torch.load(weight_path, map_location=device))
         print(" Model weights loaded.")
     except:
         print(" Loading with strict=False...")
-        model.end_dec.load_state_dict(torch.load(weight_path, map_location=device), strict=False)
+        model.enc_dec.load_state_dict(torch.load(weight_path, map_location=device), strict=False)
 
 
     model.eval()
@@ -131,8 +131,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--enc_dec_model", type=str, required=True)
+    parser.add_argument("--trans_ext_weights", type=str, required=True)
     parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
-    parser.add_argument("--out_dir", type=str, default="test_enc_dec")
+    parser.add_argument("--out_dir", type=str, default="test_translation_extension")
     args = parser.parse_args()
     main(args)

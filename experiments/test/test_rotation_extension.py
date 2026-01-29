@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from src.datasets.rgbd import RGBDDataset
 from src.datasets.scene import LinemodSceneDataset, GTDetections
-from src.models.rgbd_rotation import DepthRotationNet
+from src.models.rotation_extension import DepthRotationNet
 from src.utils.save_results import show_rotation_results
 from collections import defaultdict
 from tqdm import tqdm
@@ -37,7 +37,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = DepthRotationNet(pretrained=False)
     model = model.to(device)
-    weight_path = args.rgbd_pose_model
+    weight_path = args.rot_ext_weights
 
     try:
         model.load_state_dict(torch.load(weight_path, map_location=device))
@@ -89,7 +89,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rgbd_pose_model", type=str, required=True)
+    parser.add_argument("--rot_ext_weights", type=str, required=True)
     parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
     parser.add_argument("--out_dir", type=str, default="test_rgbd")
     args = parser.parse_args()

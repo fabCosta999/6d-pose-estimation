@@ -41,7 +41,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = RotationNet(pretrained=False)
     model = model.to(device)
-    weight_path = args.resnet_model
+    weight_path = args.resnet_weights
 
     try:
         model.load_state_dict(torch.load(weight_path, map_location=device))
@@ -93,7 +93,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--resnet_model", type=str, required=True)
+    parser.add_argument("--resnet_weights", type=str, required=True)
     parser.add_argument("--data_root", type=str, default="data/Linemod_preprocessed")
     parser.add_argument("--out_dir", type=str, default="test_resnet")
     args = parser.parse_args()
