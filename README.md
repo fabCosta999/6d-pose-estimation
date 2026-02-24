@@ -1,5 +1,7 @@
 # Enhancing 6D Object Pose Estimation
 
+authors: Costa Fabrizio, Dinapoli Mirko, Moghadasi Ali, Momtaz Zandi Faridreza
+
 ## Overview
 This repository contains the codebase for a modular 6D object pose estimation pipeline evaluated on the LineMOD dataset.
 The project builds upon a baseline pose estimation approach and introduces two modules to incorporate depth information in the learning process and enhance the predictions.
